@@ -50,16 +50,16 @@
 				password: data.password,
 				csrf_token: data.csrf_token
 			});
-			flow.setSuccess(res);
-			session.setAuthenticated(res.identity, new Date().toISOString(), '');
-			onsuccess?.(res.identity);
-		} catch (err) {
-			if (err instanceof FerretError && err.code === 'mfa_required') {
-				// Flow stays the same but status moves to mfa_required
-				flow.setReady({ ...currentFlow, status: 'mfa_required' });
+			// API returns status in response body for MFA transitions (not as error)
+			if (res.status === 'mfa_required' || res.status === 'mfa_setup_required') {
+				flow.setReady({ ...currentFlow, status: res.status, ui: res.ui ?? currentFlow.ui });
 			} else {
-				flow.setError(err, currentFlow);
+				flow.setSuccess(res);
+				session.setAuthenticated(res.identity, new Date().toISOString(), '');
+				onsuccess?.(res.identity);
 			}
+		} catch (err) {
+			flow.setError(err, currentFlow);
 		}
 	}
 

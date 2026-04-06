@@ -75,5 +75,10 @@ export const zhTW: Record<string, string> = {
 	'action.forgot_password': '忘記密碼？',
 	'action.have_account': '已有帳號？',
 	'action.no_account': '還沒有帳號？',
-	'action.resend_code': '重新傳送驗證碼'
+	'action.resend_code': '重新傳送驗證碼',
+
+	// ─── MFA 設定 ────────────────────────────────────────────────────────
+	'mfa.totp.scan_qr': '請用驗證器應用程式掃描 QR Code：',
+	'mfa.totp.manual_entry': '或手動輸入此密鑰：',
+	'mfa.recovery_codes.save': '請將這些救援碼保存在安全的地方：'
 };

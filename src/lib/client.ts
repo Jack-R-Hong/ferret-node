@@ -256,13 +256,14 @@ export class FerretClient {
 	}
 
 	/** Verify TOTP setup with a code from the authenticator app. */
-	verifyTotpSetup(code: string): Promise<TotpVerifyResponse> {
-		return this.post('/api/browser/self-service/mfa/totp/setup/verify', { code });
+	verifyTotpSetup(code: string, csrfToken: string): Promise<TotpVerifyResponse> {
+		return this.post('/api/browser/self-service/mfa/totp/setup/verify', { code, csrf_token: csrfToken });
 	}
 
-	/** Disable TOTP. Requires current password and a TOTP/recovery code. */
+	/** Disable TOTP. Requires current password, a TOTP/recovery code, and CSRF token. */
 	disableTotp(data: {
 		current_password: string;
+		csrf_token: string;
 		totp_code?: string;
 		recovery_code?: string;
 	}): Promise<void> {
@@ -284,23 +285,27 @@ export class FerretClient {
 		return this.get('/api/browser/self-service/mfa/passkey');
 	}
 
-	/** Delete a passkey. Requires current password. */
-	deletePasskey(credentialId: string, currentPassword: string): Promise<void> {
+	/** Delete a passkey. Requires current password and CSRF token. */
+	deletePasskey(credentialId: string, currentPassword: string, csrfToken: string): Promise<void> {
 		return this.del(`/api/browser/self-service/mfa/passkey/${credentialId}`, {
-			current_password: currentPassword
+			current_password: currentPassword,
+			csrf_token: csrfToken
 		});
 	}
 
-	/** Regenerate recovery codes. Requires current password. */
-	regenerateRecoveryCodes(currentPassword: string): Promise<RecoveryCodesResponse> {
+	/** Regenerate recovery codes. Requires current password and CSRF token. */
+	regenerateRecoveryCodes(currentPassword: string, csrfToken: string): Promise<RecoveryCodesResponse> {
 		return this.post('/api/browser/self-service/mfa/recovery-codes/regenerate', {
-			current_password: currentPassword
+			current_password: currentPassword,
+			csrf_token: csrfToken
 		});
 	}
 
-	/** Remove a trusted device. */
-	removeTrustedDevice(deviceId: string): Promise<void> {
-		return this.del(`/api/browser/self-service/mfa/trusted-devices/${deviceId}`);
+	/** Remove a trusted device. Requires CSRF token. */
+	removeTrustedDevice(deviceId: string, csrfToken: string): Promise<void> {
+		return this.del(`/api/browser/self-service/mfa/trusted-devices/${deviceId}`, {
+			csrf_token: csrfToken
+		});
 	}
 
 	// ─── Social Login ──────────────────────────────────────────────────────
@@ -318,9 +323,9 @@ export class FerretClient {
 		return this.get('/api/browser/self-service/social');
 	}
 
-	/** Unlink a social account. */
-	unlinkSocialAccount(provider: string): Promise<void> {
-		return this.del(`/api/browser/self-service/social/${provider}`);
+	/** Unlink a social account. Requires CSRF token. */
+	unlinkSocialAccount(provider: string, csrfToken: string): Promise<void> {
+		return this.del(`/api/browser/self-service/social/${provider}`, { csrf_token: csrfToken });
 	}
 
 	// ─── GDPR ──────────────────────────────────────────────────────────────

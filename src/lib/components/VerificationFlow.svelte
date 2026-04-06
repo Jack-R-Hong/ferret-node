@@ -47,9 +47,9 @@
 
 <div class="ferret-verification">
 	{#if !sent}
-		<p class="ferret-status-message">{t('flow.field.email')}</p>
+		<p class="ferret-status-message">{t('action.verify')}</p>
 		<button class="ferret-submit" disabled={flow.isLoading} onclick={sendCode}>
-			{t('action.verify')}
+			{t('action.submit')}
 		</button>
 	{:else if flow.ui}
 		<p class="ferret-status-message">{t('flow.status.code_sent')}</p>

@@ -73,7 +73,9 @@ export interface Flow {
 export interface LoginInitResponse extends Flow {}
 
 export interface LoginSubmitResponse {
+	status?: FlowStatus;
 	identity: Identity;
+	ui?: FlowUI;
 }
 
 export interface LoginMfaResponse {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { getFerretClient, getFerretT } from '../context.js';
 	import type { TotpSetupResponse, MfaStatusResponse } from '../types.js';
 	import { FerretError } from '../errors.js';
@@ -19,12 +20,20 @@
 	let totpSetup = $state<TotpSetupResponse | null>(null);
 	let verifyCode = $state('');
 	let backupCodes = $state<string[]>([]);
+	let csrfToken = $state('');
+
+	onMount(() => {
+		loadStatus();
+	});
 
 	async function loadStatus() {
 		loading = true;
 		error = null;
 		try {
 			mfaStatus = await client.getMfaStatus();
+			// Get a CSRF token for mutations
+			const settingsFlow = await client.createSettingsFlow();
+			csrfToken = settingsFlow.csrf_token ?? '';
 		} catch (err) {
 			error = err instanceof Error ? err : new Error(String(err));
 		} finally {
@@ -50,7 +59,7 @@
 		loading = true;
 		error = null;
 		try {
-			await client.verifyTotpSetup(verifyCode);
+			await client.verifyTotpSetup(verifyCode, csrfToken);
 			step = 'done';
 			onsuccess?.();
 		} catch (err) {
@@ -60,8 +69,12 @@
 		}
 	}
 
-	// Load status on mount
-	loadStatus();
+	/** Sanitize SVG by stripping script tags and event handlers */
+	function sanitizeSvg(svg: string): string {
+		return svg
+			.replace(/<script[\s\S]*?<\/script>/gi, '')
+			.replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
+	}
 </script>
 
 <div class="ferret-mfa-setup">
@@ -87,14 +100,14 @@
 		</div>
 	{:else if step === 'setup' && totpSetup}
 		<div class="ferret-totp-setup">
-			<p class="ferret-status-message">Scan the QR code with your authenticator app:</p>
-			<div class="ferret-qr">{@html totpSetup.qr_svg}</div>
-			<p class="ferret-secret-label">Or enter this secret manually:</p>
+			<p class="ferret-status-message">{t('mfa.totp.scan_qr')}</p>
+			<div class="ferret-qr">{@html sanitizeSvg(totpSetup.qr_svg)}</div>
+			<p class="ferret-secret-label">{t('mfa.totp.manual_entry')}</p>
 			<code class="ferret-secret">{totpSetup.secret}</code>
 
 			{#if backupCodes.length > 0}
 				<div class="ferret-backup-codes">
-					<p class="ferret-status-message">Save these recovery codes in a safe place:</p>
+					<p class="ferret-status-message">{t('mfa.recovery_codes.save')}</p>
 					<div class="ferret-codes-grid">
 						{#each backupCodes as code}
 							<code class="ferret-code">{code}</code>

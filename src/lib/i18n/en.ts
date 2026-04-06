@@ -75,5 +75,10 @@ export const en: Record<string, string> = {
 	'action.forgot_password': 'Forgot password?',
 	'action.have_account': 'Already have an account?',
 	'action.no_account': "Don't have an account?",
-	'action.resend_code': 'Resend Code'
+	'action.resend_code': 'Resend Code',
+
+	// ─── MFA Setup ───────────────────────────────────────────────────────
+	'mfa.totp.scan_qr': 'Scan the QR code with your authenticator app:',
+	'mfa.totp.manual_entry': 'Or enter this secret manually:',
+	'mfa.recovery_codes.save': 'Save these recovery codes in a safe place:'
 };

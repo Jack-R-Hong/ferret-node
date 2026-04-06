@@ -32,11 +32,6 @@
 		}
 	}
 
-	const passwordFields = [
-		{ name: 'current', type: 'password' as const, required: true, label: '' },
-		{ name: 'new', type: 'password' as const, required: true, label: '' }
-	];
-
 	async function handlePasswordSubmit(data: Record<string, string>) {
 		const currentFlow = flow.flow;
 		if (!currentFlow) return;
