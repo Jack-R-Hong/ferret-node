@@ -46,7 +46,7 @@
 				family_name: data.family_name || undefined
 			});
 			flow.setSuccess(res);
-			session.setAuthenticated(res.identity, new Date().toISOString(), '');
+			session.setAuthenticated(res.identity, new Date().toISOString(), res.expires_at ?? '');
 			onsuccess?.(res.identity);
 		} catch (err) {
 			flow.setError(err, currentFlow);

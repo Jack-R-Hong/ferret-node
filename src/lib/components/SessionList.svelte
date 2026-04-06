@@ -18,6 +18,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let revoking = $state<string | null>(null);
+	let csrfToken = $state('');
 
 	onMount(() => {
 		loadSessions();
@@ -27,8 +28,13 @@
 		loading = true;
 		error = null;
 		try {
-			const res = await client.listSessions();
-			sessions = res.sessions;
+			// Fetch sessions and a CSRF token (from settings flow) in parallel
+			const [sessionsRes, settingsFlow] = await Promise.all([
+				client.listSessions(),
+				client.createSettingsFlow()
+			]);
+			sessions = sessionsRes.sessions;
+			csrfToken = settingsFlow.csrf_token ?? '';
 		} catch (err) {
 			error = err instanceof FerretError ? t(err.i18nKey) : String(err);
 		} finally {
@@ -39,10 +45,7 @@
 	async function revoke(sessionId: string) {
 		revoking = sessionId;
 		try {
-			// We need a csrf_token. For session revocation, we'll need one from somewhere.
-			// In practice, the settings flow provides it. Here we pass an empty string
-			// and rely on the caller to handle this properly via the client directly.
-			await client.revokeSession(sessionId, '');
+			await client.revokeSession(sessionId, csrfToken);
 			sessions = sessions.filter((s) => s.id !== sessionId);
 			onrevoke?.(sessionId);
 		} catch (err) {

@@ -76,11 +76,13 @@ export interface LoginSubmitResponse {
 	status?: FlowStatus;
 	identity: Identity;
 	ui?: FlowUI;
+	expires_at?: string;
 }
 
 export interface LoginMfaResponse {
 	identity: Identity;
 	session_token?: string;
+	expires_at?: string;
 	remaining_codes?: number;
 }
 
@@ -90,6 +92,7 @@ export interface RegistrationInitResponse extends Flow {}
 
 export interface RegistrationSubmitResponse {
 	identity: Identity;
+	expires_at?: string;
 }
 
 // ─── Recovery ────────────────────────────────────────────────────────────────

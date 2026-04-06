@@ -55,7 +55,7 @@
 				flow.setReady({ ...currentFlow, status: res.status, ui: res.ui ?? currentFlow.ui });
 			} else {
 				flow.setSuccess(res);
-				session.setAuthenticated(res.identity, new Date().toISOString(), '');
+				session.setAuthenticated(res.identity, new Date().toISOString(), res.expires_at ?? '');
 				onsuccess?.(res.identity);
 			}
 		} catch (err) {
@@ -75,7 +75,7 @@
 				csrf_token: currentFlow.csrf_token ?? ''
 			});
 			flow.setSuccess(res);
-			session.setAuthenticated(res.identity, new Date().toISOString(), '');
+			session.setAuthenticated(res.identity, new Date().toISOString(), res.expires_at ?? '');
 			onsuccess?.(res.identity);
 		} catch (err) {
 			flow.setError(err, currentFlow);
@@ -121,6 +121,19 @@
 				submitLabel={t('action.verify')}
 				onsubmit={handleMfaSubmit}
 			/>
+		</div>
+	{:else if flow.flow?.status === 'mfa_setup_required'}
+		<div class="ferret-mfa">
+			<p class="ferret-status-message">{t('flow.status.mfa_setup_required')}</p>
+			{#if flow.ui}
+				<FlowForm
+					fields={flow.ui.fields}
+					error={flow.error}
+					loading={flow.isLoading}
+					submitLabel={t('action.verify')}
+					onsubmit={handleMfaSubmit}
+				/>
+			{/if}
 		</div>
 	{:else if flow.ui}
 		<FlowForm

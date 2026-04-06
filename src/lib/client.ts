@@ -121,7 +121,7 @@ export class FerretClient {
 	/** Complete passkey authentication during MFA-required login. */
 	completePasskeyLogin(
 		flowId: string,
-		credential: PublicKeyCredential
+		credential: Record<string, unknown>
 	): Promise<LoginMfaResponse> {
 		return this.post(
 			`/api/browser/self-service/login/${flowId}/passkey/complete`,
@@ -251,8 +251,8 @@ export class FerretClient {
 	}
 
 	/** Begin TOTP enrollment. Returns secret, QR code, and backup codes. */
-	setupTotp(): Promise<TotpSetupResponse> {
-		return this.post('/api/browser/self-service/mfa/totp/setup');
+	setupTotp(csrfToken?: string): Promise<TotpSetupResponse> {
+		return this.post('/api/browser/self-service/mfa/totp/setup', csrfToken ? { csrf_token: csrfToken } : undefined);
 	}
 
 	/** Verify TOTP setup with a code from the authenticator app. */
