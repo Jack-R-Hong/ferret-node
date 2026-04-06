@@ -21,7 +21,7 @@ const locales: Record<string, Translations> = {
  * ```
  */
 export function createT(locale: string, overrides?: Translations) {
-	const dict = { ...locales[locale], ...locales.en, ...overrides };
+	const dict = { ...locales.en, ...locales[locale], ...overrides };
 
 	return function t(key: string, params?: Record<string, unknown>): string {
 		let msg = dict[key] ?? key;

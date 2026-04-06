@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { FlowField } from '../types.js';
 	import { FerretError } from '../errors.js';
 	import { getFerretT } from '../context.js';
@@ -17,16 +18,17 @@
 
 	let formData = $state<Record<string, string>>({});
 
-	// Initialize form data from field defaults
+	// Initialize form data when fields change (untrack formData to avoid infinite loop)
 	$effect(() => {
+		const current = untrack(() => formData);
 		const initial: Record<string, string> = {};
 		for (const field of fields) {
 			if (field.value !== undefined) {
 				initial[field.name] = field.value;
-			} else if (!(field.name in formData)) {
-				initial[field.name] = '';
+			} else if (field.name in current) {
+				initial[field.name] = current[field.name];
 			} else {
-				initial[field.name] = formData[field.name];
+				initial[field.name] = '';
 			}
 		}
 		formData = initial;
