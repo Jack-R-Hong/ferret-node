@@ -45,7 +45,7 @@
 		flow.setSubmitting(currentFlow);
 		try {
 			data.csrf_token = currentFlow.csrf_token ?? '';
-			const res = await client.submitLogin(currentFlow.flow_id, {
+			const res = await client.submitLogin(currentFlow.id, {
 				identifier: data.identifier,
 				password: data.password,
 				csrf_token: data.csrf_token
@@ -55,8 +55,8 @@
 				flow.setReady({ ...currentFlow, status: res.status, ui: res.ui ?? currentFlow.ui });
 			} else {
 				flow.setSuccess(res);
-				session.setAuthenticated(res.identity, new Date().toISOString(), res.expires_at ?? '');
-				onsuccess?.(res.identity);
+				session.setAuthenticated(res.session.identity, res.session.authenticated_at, res.session.expires_at);
+				onsuccess?.(res.session.identity);
 			}
 		} catch (err) {
 			flow.setError(err, currentFlow);
@@ -69,7 +69,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitLoginMfa(currentFlow.flow_id, {
+			const res = await client.submitLoginMfa(currentFlow.id, {
 				method: mfaMethod,
 				code: data.code,
 				csrf_token: currentFlow.csrf_token ?? ''

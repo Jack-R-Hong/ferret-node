@@ -33,7 +33,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitVerification(currentFlow.flow_id, {
+			const res = await client.submitVerification(currentFlow.id, {
 				code: data.code,
 				csrf_token: currentFlow.csrf_token ?? ''
 			});

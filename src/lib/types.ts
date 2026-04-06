@@ -25,9 +25,12 @@ export interface Session {
 }
 
 export interface WhoamiResponse {
-	identity: Identity;
-	authenticated_at: string;
-	expires_at: string;
+	session: {
+		id: string;
+		identity: Identity;
+		authenticated_at: string;
+		expires_at: string;
+	};
 }
 
 export interface SessionListResponse {
@@ -61,7 +64,8 @@ export interface FlowUI {
 }
 
 export interface Flow {
-	flow_id: string;
+	/** Flow identifier — backend returns this as `id` */
+	id: string;
 	csrf_token?: string;
 	expires_at: string;
 	status?: FlowStatus;
@@ -73,10 +77,15 @@ export interface Flow {
 export interface LoginInitResponse extends Flow {}
 
 export interface LoginSubmitResponse {
+	session: {
+		id: string;
+		identity: Identity;
+		authenticated_at: string;
+		expires_at: string;
+	};
+	/** Set by client when backend signals MFA is needed */
 	status?: FlowStatus;
-	identity: Identity;
 	ui?: FlowUI;
-	expires_at?: string;
 }
 
 export interface LoginMfaResponse {
@@ -91,8 +100,12 @@ export interface LoginMfaResponse {
 export interface RegistrationInitResponse extends Flow {}
 
 export interface RegistrationSubmitResponse {
-	identity: Identity;
-	expires_at?: string;
+	session: {
+		id: string;
+		identity: Identity;
+		authenticated_at: string;
+		expires_at: string;
+	};
 }
 
 // ─── Recovery ────────────────────────────────────────────────────────────────

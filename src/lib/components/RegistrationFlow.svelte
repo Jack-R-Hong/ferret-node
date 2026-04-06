@@ -37,7 +37,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitRegistration(currentFlow.flow_id, {
+			const res = await client.submitRegistration(currentFlow.id, {
 				email: data.email,
 				username: data.username,
 				password: data.password,
@@ -46,8 +46,8 @@
 				family_name: data.family_name || undefined
 			});
 			flow.setSuccess(res);
-			session.setAuthenticated(res.identity, new Date().toISOString(), res.expires_at ?? '');
-			onsuccess?.(res.identity);
+			session.setAuthenticated(res.session.identity, res.session.authenticated_at, res.session.expires_at);
+			onsuccess?.(res.session.identity);
 		} catch (err) {
 			flow.setError(err, currentFlow);
 		}

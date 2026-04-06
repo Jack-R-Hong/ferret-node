@@ -50,7 +50,7 @@ export function createFlowStore() {
 			return 'flow' in state ? (state as { flow: Flow }).flow : null;
 		},
 		get flowId() {
-			return 'flow' in state ? (state as { flow: Flow }).flow.flow_id : null;
+			return 'flow' in state ? (state as { flow: Flow }).flow.id : null;
 		},
 		get csrfToken() {
 			return 'flow' in state ? (state as { flow: Flow }).flow.csrf_token : null;

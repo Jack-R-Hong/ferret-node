@@ -36,7 +36,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitRecovery(currentFlow.flow_id, {
+			const res = await client.submitRecovery(currentFlow.id, {
 				code: data.code,
 				csrf_token: currentFlow.csrf_token ?? ''
 			});
@@ -57,7 +57,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitRecovery(currentFlow.flow_id, {
+			const res = await client.submitRecovery(currentFlow.id, {
 				password: data.password,
 				csrf_token: currentFlow.csrf_token ?? ''
 			});

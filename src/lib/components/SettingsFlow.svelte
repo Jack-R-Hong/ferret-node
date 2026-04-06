@@ -38,7 +38,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitSettings(currentFlow.flow_id, {
+			const res = await client.submitSettings(currentFlow.id, {
 				csrf_token: currentFlow.csrf_token ?? '',
 				password: { current: data.current, new: data.new }
 			});
@@ -56,7 +56,7 @@
 
 		flow.setSubmitting(currentFlow);
 		try {
-			const res = await client.submitSettings(currentFlow.flow_id, {
+			const res = await client.submitSettings(currentFlow.id, {
 				csrf_token: currentFlow.csrf_token ?? '',
 				profile: data
 			});

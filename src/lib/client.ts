@@ -90,7 +90,7 @@ export class FerretClient {
 
 	// ─── Login ─────────────────────────────────────────────────────────────
 
-	/** Create a new login flow. Returns flow_id, csrf_token, and UI schema. */
+	/** Create a new login flow. Returns id, csrf_token, and UI schema. */
 	createLoginFlow(): Promise<LoginInitResponse> {
 		return this.post('/api/browser/self-service/login');
 	}
@@ -231,7 +231,7 @@ export class FerretClient {
 		email: string;
 		current_password: string;
 		csrf_token: string;
-	}): Promise<{ flow_id: string }> {
+	}): Promise<{ id: string }> {
 		return this.post('/api/browser/self-service/settings/email', data);
 	}
 

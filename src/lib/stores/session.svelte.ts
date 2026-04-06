@@ -17,9 +17,9 @@ export function createSessionStore(client: FerretClient) {
 			const res: WhoamiResponse = await client.whoami();
 			state = {
 				status: 'authenticated',
-				identity: res.identity,
-				authenticatedAt: res.authenticated_at,
-				expiresAt: res.expires_at
+				identity: res.session.identity,
+				authenticatedAt: res.session.authenticated_at,
+				expiresAt: res.session.expires_at
 			};
 		} catch (err) {
 			if (err instanceof FerretError && (err.status === 401 || err.status === 403)) {
