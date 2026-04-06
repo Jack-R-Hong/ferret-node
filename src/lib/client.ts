@@ -347,9 +347,14 @@ export class FerretClient {
 		return this.post('/api/browser/self-service/data-export');
 	}
 
-	/** Download a data export by ID. */
+	/** Get data export status by ID. */
 	getDataExport(exportId: string): Promise<DataExport> {
 		return this.get(`/api/browser/self-service/data-export/${exportId}`);
+	}
+
+	/** Get the download URL for a ready data export. */
+	getDataExportDownloadUrl(exportId: string): string {
+		return `${this.baseUrl}/api/browser/self-service/data-export/${exportId}/download`;
 	}
 
 	// ─── Security Activity ─────────────────────────────────────────────────
