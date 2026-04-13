@@ -122,10 +122,26 @@ export interface RecoverySubmitResponse {
 
 // ─── Verification ────────────────────────────────────────────────────────────
 
-export interface VerificationInitResponse extends Flow {}
+/**
+ * Response from creating a verification flow.
+ *
+ * NOTE: The backend `POST /api/browser/self-service/verification` endpoint does
+ * NOT return a full `Flow` object (no `ui`, no `csrf_token`) — just a flow id,
+ * the email the code was sent to, and a user-facing message. The SDK used to
+ * model this as `Flow` but the runtime shape is minimal; keep the interface
+ * aligned with reality so components don't read undefined fields.
+ */
+export interface VerificationInitResponse {
+	flow_id: string;
+	email: string;
+	message?: string;
+}
 
 export interface VerificationSubmitResponse {
-	identity: Identity;
+	status: string;
+	user_id: string;
+	/** Populated only when the caller resolves the identity client-side. */
+	identity?: Identity;
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
