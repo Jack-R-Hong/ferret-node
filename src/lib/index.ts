@@ -85,5 +85,13 @@ export { default as RegistrationFlow } from './components/RegistrationFlow.svelt
 export { default as RecoveryFlow } from './components/RecoveryFlow.svelte';
 export { default as VerificationFlow } from './components/VerificationFlow.svelte';
 export { default as SettingsFlow } from './components/SettingsFlow.svelte';
-export { default as MfaSetup } from './components/MfaSetup.svelte';
 export { default as SessionList } from './components/SessionList.svelte';
+export { default as TotpManager } from './components/TotpManager.svelte';
+export { default as PasskeyManager } from './components/PasskeyManager.svelte';
+export { default as TrustedDevicesList } from './components/TrustedDevicesList.svelte';
+export { default as RecoveryCodeRegen } from './components/RecoveryCodeRegen.svelte';
+export { default as EmailChangeFlow } from './components/EmailChangeFlow.svelte';
+export { default as SocialAccountsList } from './components/SocialAccountsList.svelte';
+export { default as SecurityActivityLog } from './components/SecurityActivityLog.svelte';
+export { default as DataExportRequest } from './components/DataExportRequest.svelte';
+export { default as DeleteAccountConfirm } from './components/DeleteAccountConfirm.svelte';
