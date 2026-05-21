@@ -47,6 +47,7 @@ export type {
 	// Social
 	SocialAccount,
 	SocialAccountsResponse,
+	SocialLoginCompletion,
 	// GDPR
 	DataExport,
 	// Security Activity
@@ -87,6 +88,9 @@ export type { TFunction } from './context.js';
 // ─── i18n ────────────────────────────────────────────────────────────────────
 export { createT, registerLocale, en, zhTW } from './i18n/index.js';
 export type { Translations } from './i18n/index.js';
+
+// ─── WebAuthn helpers ────────────────────────────────────────────────────────
+export { b64ToBytes, bytesToB64 } from './webauthn.js';
 
 // ─── Components ──────────────────────────────────────────────────────────────
 export { default as FerretProvider } from './components/FerretProvider.svelte';

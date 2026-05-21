@@ -3,6 +3,7 @@
 	import { getFerretClient, getFerretT } from '../context.js';
 	import type { PasskeyCredential } from '../types.js';
 	import { FerretError } from '../errors.js';
+	import { b64ToBytes, bytesToB64 } from '../webauthn.js';
 
 	interface Props {
 		onsuccess?: () => void;
@@ -52,14 +53,6 @@
 
 	function formatDate(d: string): string {
 		return new Date(d).toLocaleDateString();
-	}
-
-	function b64ToBytes(b64: string): Uint8Array {
-		return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-	}
-
-	function bytesToB64(bytes: ArrayBuffer): string {
-		return btoa(String.fromCharCode(...new Uint8Array(bytes)));
 	}
 
 	async function register() {

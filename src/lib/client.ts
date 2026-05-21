@@ -1,4 +1,5 @@
 import { FerretError } from './errors.js';
+import { b64ToBytes, bytesToB64 } from './webauthn.js';
 import type {
 	FerretClientConfig,
 	FerretErrorResponse,
@@ -23,6 +24,7 @@ import type {
 	PasskeyLoginBeginResponse,
 	RecoveryCodesResponse,
 	SocialAccountsResponse,
+	SocialLoginCompletion,
 	SecurityActivityResponse,
 	DataExport,
 	Identity,
@@ -152,6 +154,78 @@ export class FerretClient {
 			`/api/browser/self-service/login/${flowId}/passkey/complete`,
 			credential
 		);
+	}
+
+	/**
+	 * Run a conditional-mediation passkey login (autofill UI in the password
+	 * field). Best-effort: returns `null` if the browser doesn't support
+	 * conditional mediation, the user cancels, or the abort signal fires.
+	 * Backend errors still throw (`FerretError`) so callers can surface them.
+	 *
+	 * Typical use from a login page:
+	 *
+	 * ```ts
+	 * const abort = new AbortController();
+	 * onMount(() => {
+	 *   client.startConditionalPasskeyLogin({ signal: abort.signal })
+	 *     .then((res) => res && goto('/'));
+	 *   return () => abort.abort();
+	 * });
+	 * ```
+	 */
+	async startConditionalPasskeyLogin(
+		options: { signal?: AbortSignal } = {}
+	): Promise<LoginMfaResponse | null> {
+		if (typeof window === 'undefined') return null;
+		const PKC = (window as unknown as { PublicKeyCredential?: typeof PublicKeyCredential })
+			.PublicKeyCredential;
+		if (!PKC || typeof PKC.isConditionalMediationAvailable !== 'function') return null;
+		try {
+			if (!(await PKC.isConditionalMediationAvailable())) return null;
+		} catch {
+			return null;
+		}
+
+		const flow = await this.createLoginFlow();
+		const begin = await this.beginPasskeyLogin(flow.id);
+
+		const publicKey: PublicKeyCredentialRequestOptions = {
+			challenge: b64ToBytes(begin.challenge).buffer as ArrayBuffer,
+			allowCredentials: begin.allowCredentials.map((c) => ({
+				type: c.type as 'public-key',
+				id: b64ToBytes(c.id).buffer as ArrayBuffer
+			})),
+			timeout: begin.timeout,
+			userVerification: begin.userVerification as UserVerificationRequirement
+		};
+
+		let credential: PublicKeyCredential | null;
+		try {
+			credential = (await navigator.credentials.get({
+				publicKey,
+				mediation: 'conditional',
+				signal: options.signal
+			} as CredentialRequestOptions)) as PublicKeyCredential | null;
+		} catch (err) {
+			if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
+				return null;
+			}
+			throw err;
+		}
+		if (!credential) return null;
+
+		const response = credential.response as AuthenticatorAssertionResponse;
+		return this.completePasskeyLogin(flow.id, {
+			id: credential.id,
+			rawId: bytesToB64(credential.rawId),
+			type: credential.type,
+			response: {
+				authenticatorData: bytesToB64(response.authenticatorData),
+				clientDataJSON: bytesToB64(response.clientDataJSON),
+				signature: bytesToB64(response.signature),
+				userHandle: response.userHandle ? bytesToB64(response.userHandle) : null
+			}
+		});
 	}
 
 	// ─── Registration ──────────────────────────────────────────────────────
@@ -336,11 +410,31 @@ export class FerretClient {
 	// ─── Social Login ──────────────────────────────────────────────────────
 
 	/**
-	 * Redirect to social login provider.
-	 * This navigates the browser — call it from a click handler.
+	 * URL that starts a social *login* (Mode B / full-page redirect).
+	 *
+	 * Backend completes the OAuth dance and 303s back to `returnTo` with a
+	 * `ferret_status` query param (`ok`, `mfa_required`, or an error code).
+	 * Use the returned string from a click handler:
+	 *
+	 * ```ts
+	 * window.location.href = client.socialLoginUrl('google', `${origin}/login/oauth-done`);
+	 * ```
 	 */
-	socialLoginUrl(provider: string): string {
-		return `${this.baseUrl}/api/browser/self-service/social/${provider}`;
+	socialLoginUrl(provider: string, returnTo?: string): string {
+		const path = `/api/browser/self-service/login/social/${provider}`;
+		if (!returnTo) return `${this.baseUrl}${path}`;
+		return `${this.baseUrl}${path}?return_to=${encodeURIComponent(returnTo)}`;
+	}
+
+	/**
+	 * URL that starts *linking* a social account to the current session.
+	 * Requires an authenticated session — anonymous callers should use
+	 * `socialLoginUrl` instead.
+	 */
+	socialLinkUrl(provider: string, returnTo?: string): string {
+		const path = `/api/browser/self-service/social/${provider}`;
+		if (!returnTo) return `${this.baseUrl}${path}`;
+		return `${this.baseUrl}${path}?return_to=${encodeURIComponent(returnTo)}`;
 	}
 
 	/** List linked social accounts. */
@@ -351,6 +445,29 @@ export class FerretClient {
 	/** Unlink a social account. Requires CSRF token. */
 	unlinkSocialAccount(provider: string, csrfToken: string): Promise<void> {
 		return this.del(`/api/browser/self-service/social/${provider}`, { csrf_token: csrfToken });
+	}
+
+	/**
+	 * Inspect the `ferret_status` returned to the social-login `return_to`
+	 * URL and finish the trip. On `ok`, calls whoami so the caller can hydrate
+	 * its session store without a second round-trip.
+	 *
+	 * ```ts
+	 * const result = await client.completeSocialLogin(new URLSearchParams(location.search));
+	 * if (result.kind === 'ok') session.setAuthenticated(result.session.identity, ...);
+	 * ```
+	 */
+	async completeSocialLogin(params: URLSearchParams | string): Promise<SocialLoginCompletion> {
+		const sp = typeof params === 'string' ? new URLSearchParams(params) : params;
+		const status = sp.get('ferret_status');
+		if (status === 'ok') {
+			const who = await this.whoami();
+			return { kind: 'ok', session: who.session };
+		}
+		if (status === 'mfa_required') {
+			return { kind: 'mfa_required' };
+		}
+		return { kind: 'error', status };
 	}
 
 	// ─── GDPR ──────────────────────────────────────────────────────────────

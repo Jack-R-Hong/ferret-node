@@ -228,6 +228,16 @@ export interface SocialAccountsResponse {
 	accounts: SocialAccount[];
 }
 
+/**
+ * Result of the social-login return trip. The backend redirects back to the
+ * app with `?ferret_status=...`; this captures the three meaningful branches:
+ * authenticated, MFA still required, or anything else (error / missing).
+ */
+export type SocialLoginCompletion =
+	| { kind: 'ok'; session: WhoamiResponse['session'] }
+	| { kind: 'mfa_required' }
+	| { kind: 'error'; status: string | null };
+
 // ─── GDPR ────────────────────────────────────────────────────────────────────
 
 export interface DataExport {

@@ -152,9 +152,9 @@ All components use CSS custom properties for theming:
 | Settings | `createSettingsFlow`, `submitSettings` | `SettingsFlow` |
 | Session | `whoami`, `listSessions`, `revokeSession` | `SessionList` |
 | MFA (TOTP) | `setupTotp`, `verifyTotpSetup`, `disableTotp` | `MfaSetup` |
-| MFA (Passkey) | `beginPasskeyRegistration`, `completePasskeyRegistration` | — |
+| MFA (Passkey) | `beginPasskeyRegistration`, `completePasskeyRegistration`, `beginPasskeyLogin`, `completePasskeyLogin`, `startConditionalPasskeyLogin` | `PasskeyManager` |
 | MFA (Recovery) | `regenerateRecoveryCodes` | `MfaSetup` |
-| Social Login | `socialLoginUrl`, `listSocialAccounts`, `unlinkSocialAccount` | — |
+| Social Login | `socialLoginUrl`, `socialLinkUrl`, `completeSocialLogin`, `listSocialAccounts`, `unlinkSocialAccount` | `SocialAccountsList` |
 | Email Change | `createEmailChange`, `submitEmailChange` | — |
 | GDPR | `deleteAccount`, `cancelAccountDeletion`, `createDataExport` | — |
 | Activity | `getSecurityActivity` | — |
