@@ -25,7 +25,11 @@ import type {
 	SocialAccountsResponse,
 	SecurityActivityResponse,
 	DataExport,
-	Identity
+	Identity,
+	TokenListResponse,
+	TokenCreateResponse,
+	NotificationPreferences,
+	OAuthGrantsResponse
 } from './types.js';
 
 /**
@@ -98,6 +102,10 @@ export class FerretClient {
 
 	private post<T>(path: string, body?: unknown): Promise<T> {
 		return this.request<T>('POST', path, body);
+	}
+
+	private put<T>(path: string, body?: unknown): Promise<T> {
+		return this.request<T>('PUT', path, body);
 	}
 
 	private del<T>(path: string, body?: unknown): Promise<T> {
@@ -399,5 +407,85 @@ export class FerretClient {
 	/** Check server health. */
 	health(): Promise<{ status: string; db: string; valkey: string }> {
 		return this.get('/health');
+	}
+
+	// ─── Personal Access Tokens ────────────────────────────────────────────
+
+	/** List the current user's personal access tokens (metadata only). */
+	listTokens(): Promise<TokenListResponse> {
+		return this.get('/api/browser/self-service/tokens');
+	}
+
+	/**
+	 * Create a personal access token. The plain-text `token` field is returned
+	 * exactly once in this response; subsequent reads never include it.
+	 */
+	createToken(
+		name: string,
+		scopes: string[],
+		expiresInDays: number | null,
+		csrfToken: string
+	): Promise<TokenCreateResponse> {
+		return this.post('/api/browser/self-service/tokens', {
+			csrf_token: csrfToken,
+			name,
+			scopes,
+			expires_in_days: expiresInDays
+		});
+	}
+
+	/** Revoke a personal access token by id. */
+	revokeToken(id: string, csrfToken: string): Promise<void> {
+		return this.del(`/api/browser/self-service/tokens/${id}`, { csrf_token: csrfToken });
+	}
+
+	// ─── Notification Preferences ──────────────────────────────────────────
+
+	/** Get the current user's email notification preferences. */
+	getNotificationPreferences(): Promise<NotificationPreferences> {
+		return this.get('/api/browser/self-service/notification-preferences');
+	}
+
+	/** Replace the user's notification preference values. */
+	updateNotificationPreferences(
+		values: Record<string, boolean>,
+		csrfToken: string
+	): Promise<void> {
+		return this.put('/api/browser/self-service/notification-preferences', {
+			csrf_token: csrfToken,
+			values
+		});
+	}
+
+	// ─── OAuth Grants (Connected Apps) ─────────────────────────────────────
+
+	/** List third-party OAuth clients with active grants on this account. */
+	listOAuthGrants(): Promise<OAuthGrantsResponse> {
+		return this.get('/api/browser/self-service/oauth-grants');
+	}
+
+	/** Revoke a specific OAuth client's access. */
+	revokeOAuthGrant(clientId: string, csrfToken: string): Promise<void> {
+		return this.del(`/api/browser/self-service/oauth-grants/${clientId}`, {
+			csrf_token: csrfToken
+		});
+	}
+
+	// ─── Magic Link ────────────────────────────────────────────────────────
+
+	/**
+	 * Start a magic-link login flow. Always resolves successfully (the backend
+	 * returns 202 regardless of whether the email exists, to avoid leaking
+	 * account existence).
+	 */
+	async createMagicLinkFlow(email: string, returnTo?: string): Promise<void> {
+		const body: Record<string, string> = { email };
+		if (returnTo) body.return_to = returnTo;
+		try {
+			await this.post('/api/browser/self-service/login/magic', body);
+		} catch {
+			// Swallow: response status is a security signal; callers must
+			// always render the neutral "if an account exists..." message.
+		}
 	}
 }

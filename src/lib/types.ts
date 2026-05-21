@@ -252,6 +252,60 @@ export interface SecurityActivityResponse {
 	cursor?: string;
 }
 
+// ─── Personal Access Tokens ─────────────────────────────────────────────────
+
+export interface PersonalAccessToken {
+	id: string;
+	name: string;
+	scopes: string[];
+	last_used_at?: string | null;
+	created_at: string;
+	expires_at?: string | null;
+}
+
+export interface TokenListResponse {
+	tokens: PersonalAccessToken[];
+}
+
+export interface TokenCreateResponse extends PersonalAccessToken {
+	/** Plain-text token. Returned ONCE on creation; never readable again. */
+	token: string;
+}
+
+// ─── Notification Preferences ───────────────────────────────────────────────
+
+export interface NotificationPreferenceItem {
+	key: string;
+	label: string;
+	description?: string;
+}
+
+export interface NotificationPreferenceCategory {
+	key: string;
+	label: string;
+	items: NotificationPreferenceItem[];
+}
+
+export interface NotificationPreferences {
+	categories: NotificationPreferenceCategory[];
+	values: Record<string, boolean>;
+}
+
+// ─── OAuth Grants (Connected Apps) ──────────────────────────────────────────
+
+export interface OAuthGrant {
+	client_id: string;
+	client_name: string;
+	client_logo_url?: string | null;
+	scopes: string[];
+	granted_at: string;
+	last_used_at?: string | null;
+}
+
+export interface OAuthGrantsResponse {
+	grants: OAuthGrant[];
+}
+
 // ─── Error ───────────────────────────────────────────────────────────────────
 
 export interface FieldError {

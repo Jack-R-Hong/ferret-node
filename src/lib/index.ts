@@ -52,6 +52,17 @@ export type {
 	// Security Activity
 	SecurityEvent,
 	SecurityActivityResponse,
+	// Personal Access Tokens
+	PersonalAccessToken,
+	TokenListResponse,
+	TokenCreateResponse,
+	// Notification Preferences
+	NotificationPreferenceItem,
+	NotificationPreferenceCategory,
+	NotificationPreferences,
+	// OAuth Grants
+	OAuthGrant,
+	OAuthGrantsResponse,
 	// Error
 	FieldError,
 	FerretErrorBody,
