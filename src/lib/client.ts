@@ -39,6 +39,14 @@ export class FerretClient {
 	private readonly baseUrl: string;
 	private readonly _fetch: typeof fetch;
 
+	/**
+	 * Called once per response when the backend returns 401. Used by
+	 * FerretProvider to flip the session store to "unauthenticated" globally
+	 * so any expired-session 401 surfaces in the auth guard regardless of
+	 * which page fired the original request.
+	 */
+	onUnauthorized?: () => void;
+
 	constructor(config: FerretClientConfig) {
 		this.baseUrl = config.baseUrl.replace(/\/$/, '');
 		this._fetch = config.fetch ?? globalThis.fetch.bind(globalThis);
@@ -69,6 +77,15 @@ export class FerretClient {
 
 		if (!res.ok) {
 			const errResponse = json as FerretErrorResponse;
+			// Only treat session/token-invalidation codes as global unauth — a
+			// 401 from e.g. wrong-password on email change is domain-specific
+			// and should surface as a normal flow error, not a logout.
+			if (
+				res.status === 401 &&
+				/^(session|token)_/i.test(errResponse.error?.code ?? '')
+			) {
+				this.onUnauthorized?.();
+			}
 			throw new FerretError(errResponse.error);
 		}
 
