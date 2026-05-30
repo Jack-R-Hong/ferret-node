@@ -180,6 +180,24 @@ export class FerretClient {
 		});
 	}
 
+	/**
+	 * Drive a passkey assertion as the SECOND factor on an in-progress login
+	 * flow that returned `mfa_required` (the user already passed the password
+	 * step). begin → `navigator.credentials.get` → finish; the session is
+	 * established on success. Returns `null` if the user dismisses the prompt
+	 * (so the UI can stay on the MFA screen). Backend errors still throw.
+	 */
+	async verifyPasskeyMfa(
+		flowId: string,
+		options: { signal?: AbortSignal } = {}
+	): Promise<LoginSubmitResponse | null> {
+		if (typeof window === 'undefined') return null;
+		const begin = await this.beginPasskeyLogin(flowId);
+		const assertion = await this.getAssertion(begin, undefined, options.signal);
+		if (!assertion) return null;
+		return this.finishPasskeyLogin(flowId, begin.challenge_token, assertion);
+	}
+
 	/** Begin a discoverable (resident-key) passkey login — no identifier needed. */
 	beginDiscoverablePasskeyLogin(flowId: string): Promise<PasskeyLoginBeginResponse> {
 		return this.post(`/api/browser/self-service/login/${flowId}/passkey/discover/begin`);
@@ -220,16 +238,18 @@ export class FerretClient {
 	 * when the user dismisses the prompt or the abort signal fires; backend
 	 * errors still throw (`FerretError`) so callers can surface them.
 	 */
-	private async runDiscoverablePasskeyLogin(
-		mediation: 'optional' | 'conditional',
+	/**
+	 * Build the request options from a begin response, prompt the authenticator
+	 * (`navigator.credentials.get`), and serialize the assertion for the wire.
+	 * Shared by discoverable login and second-factor MFA. Returns `null` when the
+	 * user dismisses the prompt or the abort signal fires; other errors throw.
+	 */
+	private async getAssertion(
+		begin: PasskeyLoginBeginResponse,
+		mediation: CredentialMediationRequirement | undefined,
 		signal?: AbortSignal
-	): Promise<LoginSubmitResponse | null> {
-		if (typeof window === 'undefined') return null;
-
-		const flow = await this.createLoginFlow();
-		const begin = await this.beginDiscoverablePasskeyLogin(flow.id);
+	): Promise<Record<string, unknown> | null> {
 		const opts = begin.options.publicKey;
-
 		const publicKey: PublicKeyCredentialRequestOptions = {
 			challenge: b64ToBytes(opts.challenge).buffer as ArrayBuffer,
 			allowCredentials: (opts.allowCredentials ?? []).map((c) => ({
@@ -256,12 +276,21 @@ export class FerretClient {
 			throw err;
 		}
 		if (!credential) return null;
+		return this.serializeAssertion(credential);
+	}
 
-		return this.finishDiscoverablePasskeyLogin(
-			flow.id,
-			begin.challenge_token,
-			this.serializeAssertion(credential)
-		);
+	private async runDiscoverablePasskeyLogin(
+		mediation: 'optional' | 'conditional',
+		signal?: AbortSignal
+	): Promise<LoginSubmitResponse | null> {
+		if (typeof window === 'undefined') return null;
+
+		const flow = await this.createLoginFlow();
+		const begin = await this.beginDiscoverablePasskeyLogin(flow.id);
+		const assertion = await this.getAssertion(begin, mediation, signal);
+		if (!assertion) return null;
+
+		return this.finishDiscoverablePasskeyLogin(flow.id, begin.challenge_token, assertion);
 	}
 
 	/**

@@ -99,6 +99,8 @@ export const en: Record<string, string> = {
 	'mfa.passkey.last_used': 'Last used: {{date}}',
 	'mfa.passkey.never_used': 'Never used',
 	'mfa.passkey.backed_up': 'Backed up',
+	'mfa.passkey.verify_prompt': 'Use your registered passkey to finish signing in.',
+	'mfa.passkey.verify': 'Verify with passkey',
 	'mfa.trusted_devices.title': 'Trusted Devices',
 	'mfa.trusted_devices.no_devices': 'No trusted devices.',
 	'mfa.trusted_devices.remove': 'Remove',
@@ -131,6 +133,10 @@ export const en: Record<string, string> = {
 	'social.unlink_confirm': 'Are you sure you want to unlink this {{provider}} account?',
 	'social.unlinked': 'Account unlinked successfully.',
 	'social.linked_at': 'Linked: {{date}}',
+	'social.continue_with': 'Continue with {{provider}}',
+	'social.loading': 'Completing sign-in…',
+	'social.error': 'Social sign-in failed. Please try again.',
+	'social.mfa_required': 'Additional verification is required to finish signing in.',
 
 	// ─── GDPR ────────────────────────────────────────────────────────────
 	'gdpr.delete_account.title': 'Delete Account',

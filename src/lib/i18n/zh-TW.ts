@@ -99,6 +99,8 @@ export const zhTW: Record<string, string> = {
 	'mfa.passkey.last_used': '最後使用：{{date}}',
 	'mfa.passkey.never_used': '從未使用',
 	'mfa.passkey.backed_up': '已備份',
+	'mfa.passkey.verify_prompt': '使用已註冊的通行金鑰完成登入。',
+	'mfa.passkey.verify': '使用通行金鑰驗證',
 	'mfa.trusted_devices.title': '信任裝置',
 	'mfa.trusted_devices.no_devices': '沒有信任裝置。',
 	'mfa.trusted_devices.remove': '移除',
@@ -131,6 +133,10 @@ export const zhTW: Record<string, string> = {
 	'social.unlink_confirm': '確定要取消連結此 {{provider}} 帳號嗎？',
 	'social.unlinked': '帳號已成功取消連結。',
 	'social.linked_at': '連結時間：{{date}}',
+	'social.continue_with': '使用 {{provider}} 繼續',
+	'social.loading': '正在完成登入…',
+	'social.error': '社群登入失敗，請再試一次。',
+	'social.mfa_required': '需要額外驗證才能完成登入。',
 
 	// ─── GDPR ────────────────────────────────────────────────────────────
 	'gdpr.delete_account.title': '刪除帳號',
