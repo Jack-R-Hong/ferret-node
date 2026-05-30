@@ -223,17 +223,24 @@ export interface PasskeyBeginResponse {
 }
 
 /**
- * Mirrors webauthn-rs `RequestChallengeResponse` — options live under
- * `publicKey` so the decoded payload feeds `navigator.credentials.get`.
+ * Response from the worker's login `passkey/begin` and `passkey/discover/begin`:
+ * an opaque `challenge_token` to echo back to finish, plus a webauthn-rs
+ * `RequestChallengeResponse` under `options.publicKey` for
+ * `navigator.credentials.get({ publicKey: options.publicKey })`. The discover
+ * variant adds a top-level `mediation: 'conditional'` hint.
  */
 export interface PasskeyLoginBeginResponse {
-	publicKey: {
-		challenge: string;
-		allowCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
-		timeout?: number;
-		userVerification?: string;
-		rpId?: string;
-		extensions?: Record<string, unknown>;
+	challenge_token: string;
+	options: {
+		publicKey: {
+			challenge: string;
+			allowCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
+			timeout?: number;
+			userVerification?: string;
+			rpId?: string;
+			extensions?: Record<string, unknown>;
+		};
+		mediation?: string;
 	};
 }
 

@@ -51,6 +51,23 @@
 		if (field.label) return field.label;
 		return t(`flow.field.${field.name}`);
 	}
+
+	// Autocomplete hints. The `webauthn` token on the identifier field anchors
+	// conditional-mediation passkey autofill (see client.startConditionalPasskeyLogin).
+	function fieldAutocomplete(field: FlowField): string | undefined {
+		switch (field.name) {
+			case 'identifier':
+				return 'username webauthn';
+			case 'email':
+				return 'email';
+			case 'username':
+				return 'username';
+			case 'password':
+				return 'current-password';
+			default:
+				return undefined;
+		}
+	}
 </script>
 
 <form onsubmit={handleSubmit} class="ferret-form">
@@ -74,6 +91,7 @@
 					name={field.name}
 					required={field.required}
 					pattern={field.pattern}
+					autocomplete={fieldAutocomplete(field) as AutoFill | undefined}
 					bind:value={formData[field.name]}
 					disabled={loading}
 					class="ferret-input"
