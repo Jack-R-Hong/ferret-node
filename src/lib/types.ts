@@ -194,21 +194,47 @@ export interface PasskeyCredential {
 	backed_up: boolean;
 }
 
+/**
+ * Response from the worker's `mfa/passkey/register/begin`: an opaque
+ * `challenge_token` that must be echoed back to `register/complete`, plus
+ * `options.publicKey` (webauthn-rs `CreationChallengeResponse`) ready to hand
+ * to `navigator.credentials.create({ publicKey: options.publicKey })`.
+ */
 export interface PasskeyBeginResponse {
-	challenge: string;
-	rp: { id: string; name: string };
-	user: { id: string; name: string; displayName: string };
-	pubKeyCredParams: Array<{ type: string; alg: number }>;
-	authenticatorSelection: { residentKey: string; userVerification: string };
-	timeout: number;
-	excludeCredentials: Array<{ type: string; id: string }>;
+	challenge_token: string;
+	options: {
+		publicKey: {
+			challenge: string;
+			rp: { id: string; name: string };
+			user: { id: string; name: string; displayName: string };
+			pubKeyCredParams: Array<{ type: string; alg: number }>;
+			authenticatorSelection?: {
+				residentKey?: string;
+				requireResidentKey?: boolean;
+				userVerification?: string;
+				authenticatorAttachment?: string;
+			};
+			timeout?: number;
+			attestation?: string;
+			excludeCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
+			extensions?: Record<string, unknown>;
+		};
+	};
 }
 
+/**
+ * Mirrors webauthn-rs `RequestChallengeResponse` — options live under
+ * `publicKey` so the decoded payload feeds `navigator.credentials.get`.
+ */
 export interface PasskeyLoginBeginResponse {
-	challenge: string;
-	allowCredentials: Array<{ type: string; id: string }>;
-	timeout: number;
-	userVerification: string;
+	publicKey: {
+		challenge: string;
+		allowCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
+		timeout?: number;
+		userVerification?: string;
+		rpId?: string;
+		extensions?: Record<string, unknown>;
+	};
 }
 
 export interface RecoveryCodesResponse {

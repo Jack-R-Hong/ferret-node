@@ -79,6 +79,21 @@ export class FerretClient {
 			return undefined as T;
 		}
 
+		// Surface non-JSON responses (e.g. backend deserialization errors that
+		// come back as text/plain) as readable FerretError instead of letting
+		// res.json() throw an opaque SyntaxError.
+		const contentType = res.headers.get('content-type') ?? '';
+		if (!contentType.toLowerCase().includes('application/json')) {
+			if (res.ok) return undefined as T;
+			const text = await res.text().catch(() => '');
+			throw new FerretError({
+				code: 'invalid_response',
+				i18n_key: 'error.internal',
+				message: text || `HTTP ${res.status}`,
+				status: res.status
+			});
+		}
+
 		const json = await res.json();
 
 		if (!res.ok) {
@@ -152,7 +167,7 @@ export class FerretClient {
 	): Promise<LoginMfaResponse> {
 		return this.post(
 			`/api/browser/self-service/login/${flowId}/passkey/complete`,
-			credential
+			{ credential }
 		);
 	}
 
@@ -188,15 +203,18 @@ export class FerretClient {
 
 		const flow = await this.createLoginFlow();
 		const begin = await this.beginPasskeyLogin(flow.id);
+		const opts = begin.publicKey;
 
 		const publicKey: PublicKeyCredentialRequestOptions = {
-			challenge: b64ToBytes(begin.challenge).buffer as ArrayBuffer,
-			allowCredentials: begin.allowCredentials.map((c) => ({
+			challenge: b64ToBytes(opts.challenge).buffer as ArrayBuffer,
+			allowCredentials: (opts.allowCredentials ?? []).map((c) => ({
 				type: c.type as 'public-key',
-				id: b64ToBytes(c.id).buffer as ArrayBuffer
+				id: b64ToBytes(c.id).buffer as ArrayBuffer,
+				transports: c.transports as AuthenticatorTransport[] | undefined
 			})),
-			timeout: begin.timeout,
-			userVerification: begin.userVerification as UserVerificationRequirement
+			timeout: opts.timeout,
+			userVerification: opts.userVerification as UserVerificationRequirement | undefined,
+			rpId: opts.rpId
 		};
 
 		let credential: PublicKeyCredential | null;
@@ -369,14 +387,27 @@ export class FerretClient {
 		return this.del('/api/browser/self-service/mfa/totp', data);
 	}
 
-	/** Begin passkey (WebAuthn) registration. */
-	beginPasskeyRegistration(): Promise<PasskeyBeginResponse> {
-		return this.post('/api/browser/self-service/mfa/passkey/register/begin');
+	/** Begin passkey (WebAuthn) registration. Returns a `challenge_token` that
+	 * must be passed back to {@link completePasskeyRegistration}. */
+	beginPasskeyRegistration(deviceName?: string): Promise<PasskeyBeginResponse> {
+		return this.post(
+			'/api/browser/self-service/mfa/passkey/register/begin',
+			deviceName ? { device_name: deviceName } : {}
+		);
 	}
 
-	/** Complete passkey registration with the credential from the browser. */
-	completePasskeyRegistration(credential: unknown): Promise<{ credential_id: string; device_name: string }> {
-		return this.post('/api/browser/self-service/mfa/passkey/register/complete', credential);
+	/** Complete passkey registration with the credential from the browser and
+	 * the `challenge_token` from {@link beginPasskeyRegistration}. */
+	completePasskeyRegistration(
+		challengeToken: string,
+		credential: unknown,
+		deviceName?: string
+	): Promise<{ credential_id: string; device_name: string | null; created_at: string }> {
+		return this.post('/api/browser/self-service/mfa/passkey/register/complete', {
+			challenge_token: challengeToken,
+			credential,
+			...(deviceName ? { device_name: deviceName } : {})
+		});
 	}
 
 	/** List registered passkeys. */
@@ -384,11 +415,10 @@ export class FerretClient {
 		return this.get('/api/browser/self-service/mfa/passkey');
 	}
 
-	/** Delete a passkey. Requires current password and CSRF token. */
-	deletePasskey(credentialId: string, currentPassword: string, csrfToken: string): Promise<void> {
+	/** Delete a passkey. Requires the account password to re-authorize. */
+	deletePasskey(credentialId: string, currentPassword: string): Promise<void> {
 		return this.del(`/api/browser/self-service/mfa/passkey/${credentialId}`, {
-			current_password: currentPassword,
-			csrf_token: csrfToken
+			current_password: currentPassword
 		});
 	}
 
