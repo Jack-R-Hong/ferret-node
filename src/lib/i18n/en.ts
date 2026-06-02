@@ -61,6 +61,11 @@ export const en: Record<string, string> = {
 	'flow.method.totp': 'Authenticator App',
 	'flow.method.webauthn': 'Passkey',
 	'flow.method.recovery_code': 'Recovery Code',
+	// MFA-status method types (TotpManager keys off `method.type`): the
+	// /mfa endpoint reports `passkey` and `recovery_codes`, distinct from the
+	// login-flow tab keys (`webauthn` / `recovery_code`) above.
+	'flow.method.passkey': 'Passkey',
+	'flow.method.recovery_codes': 'Recovery Codes',
 
 	// ─── Actions ─────────────────────────────────────────────────────────
 	'action.login': 'Log In',

@@ -61,6 +61,11 @@ export const zhTW: Record<string, string> = {
 	'flow.method.totp': '驗證器應用程式',
 	'flow.method.webauthn': '通行金鑰',
 	'flow.method.recovery_code': '救援碼',
+	// MFA-status method types (TotpManager keys off `method.type`): the
+	// /mfa endpoint reports `passkey` and `recovery_codes`, distinct from the
+	// login-flow tab keys (`webauthn` / `recovery_code`) above.
+	'flow.method.passkey': '通行金鑰',
+	'flow.method.recovery_codes': '救援碼',
 
 	// ─── 操作 ────────────────────────────────────────────────────────────
 	'action.login': '登入',
