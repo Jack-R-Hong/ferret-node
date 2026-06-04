@@ -11,8 +11,13 @@ export class FerretError extends Error {
 		super(body.message);
 		this.name = 'FerretError';
 		this.code = body.code;
-		this.status = body.status;
-		this.i18nKey = body.i18n_key;
+		this.status = body.status ?? 0;
+		// Older worker deploys omit `i18n_key` (and send `message` === `code`).
+		// Without a key the UI renders a blank error box, since components show
+		// error text via `t(error.i18nKey)`. Derive `error.<code>` so every error
+		// resolves to a dictionary entry (or at least a legible key) — see the
+		// `error.*` block in i18n/en.ts.
+		this.i18nKey = body.i18n_key || (body.code ? `error.${body.code}` : 'error.internal');
 		this.details = body.details ?? undefined;
 		this.retryAfter = body.retry_after ?? undefined;
 	}

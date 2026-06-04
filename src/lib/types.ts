@@ -362,8 +362,10 @@ export interface FieldError {
 export interface FerretErrorBody {
 	code: string;
 	message: string;
-	i18n_key: string;
-	status: number;
+	// Optional on the wire: older worker deploys send only `{code, message}`.
+	// `FerretError` derives a fallback key from `code` when these are absent.
+	i18n_key?: string;
+	status?: number;
 	details?: FieldError[];
 	retry_after?: number;
 }
