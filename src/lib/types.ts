@@ -70,6 +70,14 @@ export interface Flow {
 	expires_at: string;
 	status?: FlowStatus;
 	ui: FlowUI;
+	/**
+	 * Social-login provider slugs (e.g. `"google"`) the backend has enabled and
+	 * fully configured, sorted for a stable UI order. Only present on the login
+	 * flow init; omitted when no provider is usable. Render a social button only
+	 * for a slug that appears here so users never see a control the backend would
+	 * reject with `social_provider_not_found`.
+	 */
+	social_providers?: string[];
 }
 
 // ─── Login ───────────────────────────────────────────────────────────────────
