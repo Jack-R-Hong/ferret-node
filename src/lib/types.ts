@@ -181,16 +181,9 @@ export interface MfaMethod {
 	count?: number;
 }
 
-export interface TrustedDevice {
-	device_id: string;
-	device_name: string;
-	expires_at: string;
-}
-
 export interface MfaStatusResponse {
 	enabled: boolean;
 	methods: MfaMethod[];
-	trusted_devices: TrustedDevice[];
 	/**
 	 * Per-user MFA requirement: 1 = password only, 2 = + one second factor,
 	 * 3 = + two distinct factors. Drives the "require two-factor" toggle.

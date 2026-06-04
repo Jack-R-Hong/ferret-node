@@ -315,11 +315,11 @@ const { identity } = await client.submitEmailChange(flowId, {
 
 ### `getMfaStatus()`
 
-Get current MFA status including enabled methods and trusted devices.
+Get current MFA status including enabled methods and the per-user MFA level.
 
 ```ts
 const status = await client.getMfaStatus();
-// status.enabled, status.methods[], status.trusted_devices[]
+// status.enabled, status.methods[], status.mfa_level
 ```
 
 **Returns:** `MfaStatusResponse`
@@ -406,16 +406,6 @@ const { codes } = await client.regenerateRecoveryCodes('mypassword', csrfToken);
 ```
 
 **Returns:** `RecoveryCodesResponse`
-
----
-
-## MFA — Trusted Devices
-
-### `removeTrustedDevice(deviceId, csrfToken)`
-
-```ts
-await client.removeTrustedDevice('device-id', csrfToken);
-```
 
 ---
 

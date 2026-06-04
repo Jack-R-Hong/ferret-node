@@ -181,16 +181,10 @@ interface MfaMethod {
   remaining?: number;
 }
 
-interface TrustedDevice {
-  device_id: string;
-  device_name: string;
-  expires_at: string;
-}
-
 interface MfaStatusResponse {
   enabled: boolean;
   methods: MfaMethod[];
-  trusted_devices: TrustedDevice[];
+  mfa_level?: number;
 }
 
 interface TotpSetupResponse {

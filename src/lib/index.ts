@@ -36,7 +36,6 @@ export type {
 	SettingsSubmitResponse,
 	// MFA
 	MfaMethod,
-	TrustedDevice,
 	MfaStatusResponse,
 	TotpSetupResponse,
 	TotpVerifyResponse,
@@ -106,7 +105,6 @@ export { default as SessionList } from './components/SessionList.svelte';
 export { default as TotpManager } from './components/TotpManager.svelte';
 export { default as MfaRequirementToggle } from './components/MfaRequirementToggle.svelte';
 export { default as PasskeyManager } from './components/PasskeyManager.svelte';
-export { default as TrustedDevicesList } from './components/TrustedDevicesList.svelte';
 export { default as RecoveryCodeRegen } from './components/RecoveryCodeRegen.svelte';
 export { default as EmailChangeFlow } from './components/EmailChangeFlow.svelte';
 export { default as SocialAccountsList } from './components/SocialAccountsList.svelte';
