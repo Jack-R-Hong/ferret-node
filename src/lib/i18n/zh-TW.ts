@@ -135,11 +135,6 @@ export const zhTW: Record<string, string> = {
 	'mfa.passkey.backed_up': '已備份',
 	'mfa.passkey.verify_prompt': '使用已註冊的通行金鑰完成登入。',
 	'mfa.passkey.verify': '使用通行金鑰驗證',
-	'mfa.trusted_devices.title': '信任裝置',
-	'mfa.trusted_devices.no_devices': '沒有信任裝置。',
-	'mfa.trusted_devices.remove': '移除',
-	'mfa.trusted_devices.expires': '到期：{{date}}',
-	'mfa.trusted_devices.removed': '信任裝置已移除。',
 
 	// ─── 導覽列 ─────────────────────────────────────────────────────────
 	'nav.profile': '個人資料',

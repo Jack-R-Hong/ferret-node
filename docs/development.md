@@ -238,7 +238,7 @@ idle → loading → ready → submitting → success
 
 多步驟 flow（如 `RecoveryFlow`、`LoginFlow` MFA 分支）：用 local `$state` 變數記 step，根據 backend 回傳的 `status` 切換 UI；不要再起第二個 FlowStore。
 
-非 flow component（`PasskeyManager`、`TrustedDevicesList`、`SessionList` 之類的管理型 component）**不用** `FlowStore`，直接用幾個 `$state` 變數即可——它們不是 single-submit 表單。
+非 flow component（`PasskeyManager`、`SessionList` 之類的管理型 component）**不用** `FlowStore`，直接用幾個 `$state` 變數即可——它們不是 single-submit 表單。
 
 ---
 

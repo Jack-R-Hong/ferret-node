@@ -514,7 +514,7 @@ export class FerretClient {
 
 	// ─── MFA ───────────────────────────────────────────────────────────────
 
-	/** Get current MFA status (methods, trusted devices, mfa_level). */
+	/** Get current MFA status (methods, mfa_level). */
 	getMfaStatus(): Promise<MfaStatusResponse> {
 		return this.get('/api/browser/self-service/mfa');
 	}
@@ -589,13 +589,6 @@ export class FerretClient {
 	regenerateRecoveryCodes(currentPassword: string, csrfToken: string): Promise<RecoveryCodesResponse> {
 		return this.post('/api/browser/self-service/mfa/recovery-codes/regenerate', {
 			current_password: currentPassword,
-			csrf_token: csrfToken
-		});
-	}
-
-	/** Remove a trusted device. Requires CSRF token. */
-	removeTrustedDevice(deviceId: string, csrfToken: string): Promise<void> {
-		return this.del(`/api/browser/self-service/mfa/trusted-devices/${deviceId}`, {
 			csrf_token: csrfToken
 		});
 	}

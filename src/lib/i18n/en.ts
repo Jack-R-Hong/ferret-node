@@ -136,11 +136,6 @@ export const en: Record<string, string> = {
 	'mfa.passkey.backed_up': 'Backed up',
 	'mfa.passkey.verify_prompt': 'Use your registered passkey to finish signing in.',
 	'mfa.passkey.verify': 'Verify with passkey',
-	'mfa.trusted_devices.title': 'Trusted Devices',
-	'mfa.trusted_devices.no_devices': 'No trusted devices.',
-	'mfa.trusted_devices.remove': 'Remove',
-	'mfa.trusted_devices.expires': 'Expires: {{date}}',
-	'mfa.trusted_devices.removed': 'Trusted device removed.',
 
 	// ─── Navigation ──────────────────────────────────────────────────────
 	'nav.profile': 'Profile',
