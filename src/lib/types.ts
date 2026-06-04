@@ -373,6 +373,18 @@ export interface OAuthGrantsResponse {
 	grants: OAuthGrant[];
 }
 
+// ─── Custom Attributes ──────────────────────────────────────────────────────
+
+/**
+ * Name → value map of the caller's custom attributes. Values are arbitrary
+ * JSON as declared by each attribute's schema (string, number, boolean,
+ * array, object, ...). GET returns only user/public-readable attributes; PUT
+ * writes user-writable ones and echoes back the same filtered map.
+ */
+export interface AttributesResponse {
+	attributes: Record<string, unknown>;
+}
+
 // ─── Error ───────────────────────────────────────────────────────────────────
 
 export interface FieldError {
