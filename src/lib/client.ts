@@ -157,11 +157,17 @@ export class FerretClient {
 		return this.post(`/api/browser/self-service/login/${flowId}`, data);
 	}
 
-	/** Submit MFA verification during login (TOTP or recovery code). */
+	/**
+	 * Submit MFA verification during login (TOTP or recovery code).
+	 *
+	 * Note: there is no browser `trust_device` option — trusted devices are a
+	 * native-only feature (the worker's browser MFA submit has no such field and
+	 * `GET /mfa` always reports zero trusted devices on this path).
+	 */
 	submitLoginMfa(
 		flowId: string,
 		data:
-			| { method: 'totp'; code: string; trust_device?: boolean; csrf_token: string }
+			| { method: 'totp'; code: string; csrf_token: string }
 			| { method: 'recovery_code'; code: string; csrf_token: string }
 	): Promise<LoginMfaResponse> {
 		return this.post(`/api/browser/self-service/login/${flowId}/mfa`, data);

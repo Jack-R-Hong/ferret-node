@@ -60,7 +60,6 @@ Submit MFA verification during login.
 const result = await client.submitLoginMfa(flow.id, {
   method: 'totp',
   code: '123456',
-  trust_device: true,  // optional
   csrf_token: flow.csrf_token!
 });
 
