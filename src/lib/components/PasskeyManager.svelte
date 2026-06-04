@@ -17,7 +17,6 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let success = $state<string | null>(null);
-	let csrfToken = $state('');
 	let passkeys = $state<PasskeyCredential[]>([]);
 
 	let registerLoading = $state(false);
@@ -33,12 +32,8 @@
 		loading = true;
 		error = null;
 		try {
-			const [res, flow] = await Promise.all([
-				client.listPasskeys().catch(() => ({ credentials: [] })),
-				client.createSettingsFlow()
-			]);
+			const res = await client.listPasskeys();
 			passkeys = res.credentials;
-			csrfToken = flow.csrf_token ?? '';
 		} catch (err) {
 			error = err instanceof FerretError ? t(err.i18nKey) : String(err);
 		} finally {
@@ -59,7 +54,8 @@
 		clearMessages();
 		registerLoading = true;
 		try {
-			const options = await client.beginPasskeyRegistration();
+			const begin = await client.beginPasskeyRegistration();
+			const options = begin.options.publicKey;
 			const publicKey: PublicKeyCredentialCreationOptions = {
 				challenge: b64ToBytes(options.challenge) as BufferSource,
 				rp: options.rp,
@@ -70,11 +66,13 @@
 				},
 				pubKeyCredParams: options.pubKeyCredParams as PublicKeyCredentialParameters[],
 				authenticatorSelection:
-					options.authenticatorSelection as AuthenticatorSelectionCriteria,
+					options.authenticatorSelection as AuthenticatorSelectionCriteria | undefined,
 				timeout: options.timeout,
-				excludeCredentials: options.excludeCredentials.map((c) => ({
+				attestation: options.attestation as AttestationConveyancePreference | undefined,
+				excludeCredentials: (options.excludeCredentials ?? []).map((c) => ({
 					type: c.type as 'public-key',
-					id: b64ToBytes(c.id) as BufferSource
+					id: b64ToBytes(c.id) as BufferSource,
+					transports: c.transports as AuthenticatorTransport[] | undefined
 				}))
 			};
 			const credential = (await navigator.credentials.create({ publicKey })) as
@@ -84,7 +82,7 @@
 			if (!credential) throw new Error('Passkey registration cancelled');
 
 			const response = credential.response as AuthenticatorAttestationResponse;
-			await client.completePasskeyRegistration({
+			await client.completePasskeyRegistration(begin.challenge_token, {
 				id: credential.id,
 				rawId: bytesToB64(credential.rawId),
 				type: credential.type,
@@ -110,7 +108,7 @@
 		clearMessages();
 		deleteLoading = true;
 		try {
-			await client.deletePasskey(deletingId, deletePassword, csrfToken);
+			await client.deletePasskey(deletingId, deletePassword);
 			success = t('mfa.passkey.deleted');
 			deletingId = null;
 			deletePassword = '';

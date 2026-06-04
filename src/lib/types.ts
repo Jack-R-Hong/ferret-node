@@ -194,21 +194,54 @@ export interface PasskeyCredential {
 	backed_up: boolean;
 }
 
+/**
+ * Response from the worker's `mfa/passkey/register/begin`: an opaque
+ * `challenge_token` that must be echoed back to `register/complete`, plus
+ * `options.publicKey` (webauthn-rs `CreationChallengeResponse`) ready to hand
+ * to `navigator.credentials.create({ publicKey: options.publicKey })`.
+ */
 export interface PasskeyBeginResponse {
-	challenge: string;
-	rp: { id: string; name: string };
-	user: { id: string; name: string; displayName: string };
-	pubKeyCredParams: Array<{ type: string; alg: number }>;
-	authenticatorSelection: { residentKey: string; userVerification: string };
-	timeout: number;
-	excludeCredentials: Array<{ type: string; id: string }>;
+	challenge_token: string;
+	options: {
+		publicKey: {
+			challenge: string;
+			rp: { id: string; name: string };
+			user: { id: string; name: string; displayName: string };
+			pubKeyCredParams: Array<{ type: string; alg: number }>;
+			authenticatorSelection?: {
+				residentKey?: string;
+				requireResidentKey?: boolean;
+				userVerification?: string;
+				authenticatorAttachment?: string;
+			};
+			timeout?: number;
+			attestation?: string;
+			excludeCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
+			extensions?: Record<string, unknown>;
+		};
+	};
 }
 
+/**
+ * Response from the worker's login `passkey/begin` and `passkey/discover/begin`:
+ * an opaque `challenge_token` to echo back to finish, plus a webauthn-rs
+ * `RequestChallengeResponse` under `options.publicKey` for
+ * `navigator.credentials.get({ publicKey: options.publicKey })`. The discover
+ * variant adds a top-level `mediation: 'conditional'` hint.
+ */
 export interface PasskeyLoginBeginResponse {
-	challenge: string;
-	allowCredentials: Array<{ type: string; id: string }>;
-	timeout: number;
-	userVerification: string;
+	challenge_token: string;
+	options: {
+		publicKey: {
+			challenge: string;
+			allowCredentials?: Array<{ type: string; id: string; transports?: string[] }>;
+			timeout?: number;
+			userVerification?: string;
+			rpId?: string;
+			extensions?: Record<string, unknown>;
+		};
+		mediation?: string;
+	};
 }
 
 export interface RecoveryCodesResponse {
@@ -329,8 +362,10 @@ export interface FieldError {
 export interface FerretErrorBody {
 	code: string;
 	message: string;
-	i18n_key: string;
-	status: number;
+	// Optional on the wire: older worker deploys send only `{code, message}`.
+	// `FerretError` derives a fallback key from `code` when these are absent.
+	i18n_key?: string;
+	status?: number;
 	details?: FieldError[];
 	retry_after?: number;
 }

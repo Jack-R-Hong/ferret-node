@@ -79,6 +79,21 @@ export class FerretClient {
 			return undefined as T;
 		}
 
+		// Surface non-JSON responses (e.g. backend deserialization errors that
+		// come back as text/plain) as readable FerretError instead of letting
+		// res.json() throw an opaque SyntaxError.
+		const contentType = res.headers.get('content-type') ?? '';
+		if (!contentType.toLowerCase().includes('application/json')) {
+			if (res.ok) return undefined as T;
+			const text = await res.text().catch(() => '');
+			throw new FerretError({
+				code: 'invalid_response',
+				i18n_key: 'error.internal',
+				message: text || `HTTP ${res.status}`,
+				status: res.status
+			});
+		}
+
 		const json = await res.json();
 
 		if (!res.ok) {
@@ -140,29 +155,159 @@ export class FerretClient {
 		return this.post(`/api/browser/self-service/login/${flowId}`, data);
 	}
 
-	/** Begin passkey authentication during MFA-required login. */
-	beginPasskeyLogin(flowId: string): Promise<PasskeyLoginBeginResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}/passkey/begin`);
-	}
-
-	/** Complete passkey authentication during MFA-required login. */
-	completePasskeyLogin(
-		flowId: string,
-		credential: Record<string, unknown>
-	): Promise<LoginMfaResponse> {
+	/**
+	 * Begin a scoped login-time passkey assertion. Pass `identifier` to do a
+	 * first-factor passkey login for a known account, or call with just the
+	 * flow id when passkey is the second factor on an in-progress flow.
+	 * Returns a `challenge_token` to pass to {@link finishPasskeyLogin}.
+	 */
+	beginPasskeyLogin(flowId: string, identifier?: string): Promise<PasskeyLoginBeginResponse> {
 		return this.post(
-			`/api/browser/self-service/login/${flowId}/passkey/complete`,
-			credential
+			`/api/browser/self-service/login/${flowId}/passkey/begin`,
+			identifier ? { identifier } : {}
 		);
 	}
 
+	/** Finish a scoped login-time passkey assertion. Establishes the session. */
+	finishPasskeyLogin(
+		flowId: string,
+		challengeToken: string,
+		credential: Record<string, unknown>
+	): Promise<LoginSubmitResponse> {
+		return this.post(`/api/browser/self-service/login/${flowId}/passkey/finish`, {
+			challenge_token: challengeToken,
+			credential
+		});
+	}
+
 	/**
-	 * Run a conditional-mediation passkey login (autofill UI in the password
-	 * field). Best-effort: returns `null` if the browser doesn't support
-	 * conditional mediation, the user cancels, or the abort signal fires.
-	 * Backend errors still throw (`FerretError`) so callers can surface them.
-	 *
-	 * Typical use from a login page:
+	 * Drive a passkey assertion as the SECOND factor on an in-progress login
+	 * flow that returned `mfa_required` (the user already passed the password
+	 * step). begin → `navigator.credentials.get` → finish; the session is
+	 * established on success. Returns `null` if the user dismisses the prompt
+	 * (so the UI can stay on the MFA screen). Backend errors still throw.
+	 */
+	async verifyPasskeyMfa(
+		flowId: string,
+		options: { signal?: AbortSignal } = {}
+	): Promise<LoginSubmitResponse | null> {
+		if (typeof window === 'undefined') return null;
+		const begin = await this.beginPasskeyLogin(flowId);
+		const assertion = await this.getAssertion(begin, undefined, options.signal);
+		if (!assertion) return null;
+		return this.finishPasskeyLogin(flowId, begin.challenge_token, assertion);
+	}
+
+	/** Begin a discoverable (resident-key) passkey login — no identifier needed. */
+	beginDiscoverablePasskeyLogin(flowId: string): Promise<PasskeyLoginBeginResponse> {
+		return this.post(`/api/browser/self-service/login/${flowId}/passkey/discover/begin`);
+	}
+
+	/** Finish a discoverable passkey login. Establishes the session. */
+	finishDiscoverablePasskeyLogin(
+		flowId: string,
+		challengeToken: string,
+		credential: Record<string, unknown>
+	): Promise<LoginSubmitResponse> {
+		return this.post(`/api/browser/self-service/login/${flowId}/passkey/discover/finish`, {
+			challenge_token: challengeToken,
+			credential
+		});
+	}
+
+	/** Serialize a WebAuthn assertion (`navigator.credentials.get`) for the wire. */
+	private serializeAssertion(credential: PublicKeyCredential): Record<string, unknown> {
+		const response = credential.response as AuthenticatorAssertionResponse;
+		return {
+			id: credential.id,
+			rawId: bytesToB64(credential.rawId),
+			type: credential.type,
+			response: {
+				authenticatorData: bytesToB64(response.authenticatorData),
+				clientDataJSON: bytesToB64(response.clientDataJSON),
+				signature: bytesToB64(response.signature),
+				userHandle: response.userHandle ? bytesToB64(response.userHandle) : null
+			}
+		};
+	}
+
+	/**
+	 * Drive a discoverable passkey login through the discover/begin → get →
+	 * discover/finish dance. `mediation: 'conditional'` powers autofill UI;
+	 * `'optional'` (the default) shows the modal account picker. Returns `null`
+	 * when the user dismisses the prompt or the abort signal fires; backend
+	 * errors still throw (`FerretError`) so callers can surface them.
+	 */
+	/**
+	 * Build the request options from a begin response, prompt the authenticator
+	 * (`navigator.credentials.get`), and serialize the assertion for the wire.
+	 * Shared by discoverable login and second-factor MFA. Returns `null` when the
+	 * user dismisses the prompt or the abort signal fires; other errors throw.
+	 */
+	private async getAssertion(
+		begin: PasskeyLoginBeginResponse,
+		mediation: CredentialMediationRequirement | undefined,
+		signal?: AbortSignal
+	): Promise<Record<string, unknown> | null> {
+		const opts = begin.options.publicKey;
+		const publicKey: PublicKeyCredentialRequestOptions = {
+			challenge: b64ToBytes(opts.challenge).buffer as ArrayBuffer,
+			allowCredentials: (opts.allowCredentials ?? []).map((c) => ({
+				type: c.type as 'public-key',
+				id: b64ToBytes(c.id).buffer as ArrayBuffer,
+				transports: c.transports as AuthenticatorTransport[] | undefined
+			})),
+			timeout: opts.timeout,
+			userVerification: opts.userVerification as UserVerificationRequirement | undefined,
+			rpId: opts.rpId
+		};
+
+		let credential: PublicKeyCredential | null;
+		try {
+			credential = (await navigator.credentials.get({
+				publicKey,
+				mediation,
+				signal
+			} as CredentialRequestOptions)) as PublicKeyCredential | null;
+		} catch (err) {
+			if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
+				return null;
+			}
+			throw err;
+		}
+		if (!credential) return null;
+		return this.serializeAssertion(credential);
+	}
+
+	private async runDiscoverablePasskeyLogin(
+		mediation: 'optional' | 'conditional',
+		signal?: AbortSignal
+	): Promise<LoginSubmitResponse | null> {
+		if (typeof window === 'undefined') return null;
+
+		const flow = await this.createLoginFlow();
+		const begin = await this.beginDiscoverablePasskeyLogin(flow.id);
+		const assertion = await this.getAssertion(begin, mediation, signal);
+		if (!assertion) return null;
+
+		return this.finishDiscoverablePasskeyLogin(flow.id, begin.challenge_token, assertion);
+	}
+
+	/**
+	 * Explicit "Sign in with a passkey" — shows the platform's modal account
+	 * picker (discoverable credentials, no identifier required). Returns `null`
+	 * if the user dismisses the prompt.
+	 */
+	signInWithPasskey(options: { signal?: AbortSignal } = {}): Promise<LoginSubmitResponse | null> {
+		return this.runDiscoverablePasskeyLogin('optional', options.signal);
+	}
+
+	/**
+	 * Conditional-mediation passkey login (autofill UI on the identifier field).
+	 * Best-effort: returns `null` if the browser doesn't support conditional
+	 * mediation, the user cancels, or the abort signal fires. For the autofill
+	 * UI to appear, an input with `autocomplete="username webauthn"` must be
+	 * present (the SDK `LoginFlow`/`FlowForm` set this on the identifier field).
 	 *
 	 * ```ts
 	 * const abort = new AbortController();
@@ -175,7 +320,7 @@ export class FerretClient {
 	 */
 	async startConditionalPasskeyLogin(
 		options: { signal?: AbortSignal } = {}
-	): Promise<LoginMfaResponse | null> {
+	): Promise<LoginSubmitResponse | null> {
 		if (typeof window === 'undefined') return null;
 		const PKC = (window as unknown as { PublicKeyCredential?: typeof PublicKeyCredential })
 			.PublicKeyCredential;
@@ -185,47 +330,7 @@ export class FerretClient {
 		} catch {
 			return null;
 		}
-
-		const flow = await this.createLoginFlow();
-		const begin = await this.beginPasskeyLogin(flow.id);
-
-		const publicKey: PublicKeyCredentialRequestOptions = {
-			challenge: b64ToBytes(begin.challenge).buffer as ArrayBuffer,
-			allowCredentials: begin.allowCredentials.map((c) => ({
-				type: c.type as 'public-key',
-				id: b64ToBytes(c.id).buffer as ArrayBuffer
-			})),
-			timeout: begin.timeout,
-			userVerification: begin.userVerification as UserVerificationRequirement
-		};
-
-		let credential: PublicKeyCredential | null;
-		try {
-			credential = (await navigator.credentials.get({
-				publicKey,
-				mediation: 'conditional',
-				signal: options.signal
-			} as CredentialRequestOptions)) as PublicKeyCredential | null;
-		} catch (err) {
-			if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
-				return null;
-			}
-			throw err;
-		}
-		if (!credential) return null;
-
-		const response = credential.response as AuthenticatorAssertionResponse;
-		return this.completePasskeyLogin(flow.id, {
-			id: credential.id,
-			rawId: bytesToB64(credential.rawId),
-			type: credential.type,
-			response: {
-				authenticatorData: bytesToB64(response.authenticatorData),
-				clientDataJSON: bytesToB64(response.clientDataJSON),
-				signature: bytesToB64(response.signature),
-				userHandle: response.userHandle ? bytesToB64(response.userHandle) : null
-			}
-		});
+		return this.runDiscoverablePasskeyLogin('conditional', options.signal);
 	}
 
 	// ─── Registration ──────────────────────────────────────────────────────
@@ -369,14 +474,27 @@ export class FerretClient {
 		return this.del('/api/browser/self-service/mfa/totp', data);
 	}
 
-	/** Begin passkey (WebAuthn) registration. */
-	beginPasskeyRegistration(): Promise<PasskeyBeginResponse> {
-		return this.post('/api/browser/self-service/mfa/passkey/register/begin');
+	/** Begin passkey (WebAuthn) registration. Returns a `challenge_token` that
+	 * must be passed back to {@link completePasskeyRegistration}. */
+	beginPasskeyRegistration(deviceName?: string): Promise<PasskeyBeginResponse> {
+		return this.post(
+			'/api/browser/self-service/mfa/passkey/register/begin',
+			deviceName ? { device_name: deviceName } : {}
+		);
 	}
 
-	/** Complete passkey registration with the credential from the browser. */
-	completePasskeyRegistration(credential: unknown): Promise<{ credential_id: string; device_name: string }> {
-		return this.post('/api/browser/self-service/mfa/passkey/register/complete', credential);
+	/** Complete passkey registration with the credential from the browser and
+	 * the `challenge_token` from {@link beginPasskeyRegistration}. */
+	completePasskeyRegistration(
+		challengeToken: string,
+		credential: unknown,
+		deviceName?: string
+	): Promise<{ credential_id: string; device_name: string | null; created_at: string }> {
+		return this.post('/api/browser/self-service/mfa/passkey/register/complete', {
+			challenge_token: challengeToken,
+			credential,
+			...(deviceName ? { device_name: deviceName } : {})
+		});
 	}
 
 	/** List registered passkeys. */
@@ -384,11 +502,10 @@ export class FerretClient {
 		return this.get('/api/browser/self-service/mfa/passkey');
 	}
 
-	/** Delete a passkey. Requires current password and CSRF token. */
-	deletePasskey(credentialId: string, currentPassword: string, csrfToken: string): Promise<void> {
+	/** Delete a passkey. Requires the account password to re-authorize. */
+	deletePasskey(credentialId: string, currentPassword: string): Promise<void> {
 		return this.del(`/api/browser/self-service/mfa/passkey/${credentialId}`, {
-			current_password: currentPassword,
-			csrf_token: csrfToken
+			current_password: currentPassword
 		});
 	}
 
