@@ -13,9 +13,16 @@
 		onforgot?: () => void;
 		/** Called when user clicks "Sign up" */
 		onregister?: () => void;
+		/**
+		 * Called once the login flow has initialised, with the social-login
+		 * provider slugs the backend reports as enabled (empty when none).
+		 * Lets the host page render social buttons off the same flow-init
+		 * round-trip this component already makes, instead of probing again.
+		 */
+		onproviders?: (providers: string[]) => void;
 	}
 
-	let { onsuccess, onforgot, onregister }: Props = $props();
+	let { onsuccess, onforgot, onregister, onproviders }: Props = $props();
 
 	const client = getFerretClient();
 	const session = getFerretSession();
@@ -45,6 +52,7 @@
 		try {
 			const res = await client.createLoginFlow();
 			flow.setReady(res);
+			onproviders?.(res.social_providers ?? []);
 		} catch (err) {
 			flow.setError(err);
 		}
