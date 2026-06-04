@@ -22,7 +22,8 @@
 	const t = getFerretT();
 	const flow = createFlowStore();
 
-	let mfaMethod = $state<'totp' | 'recovery_code'>('totp');
+	let mfaMethod = $state<'totp' | 'recovery_code' | 'passkey'>('totp');
+	let passkeyMfaLoading = $state(false);
 
 	onMount(() => {
 		initFlow();
@@ -70,7 +71,7 @@
 		flow.setSubmitting(currentFlow);
 		try {
 			const res = await client.submitLoginMfa(currentFlow.id, {
-				method: mfaMethod,
+				method: mfaMethod === 'passkey' ? 'totp' : mfaMethod,
 				code: data.code,
 				csrf_token: currentFlow.csrf_token ?? ''
 			});
@@ -79,6 +80,35 @@
 			onsuccess?.(res.identity);
 		} catch (err) {
 			flow.setError(err, currentFlow);
+		}
+	}
+
+	// Passkey as the second factor: begin → navigator.credentials.get → finish,
+	// driven by the SDK client. `null` means the user dismissed the platform
+	// prompt — stay on the MFA screen rather than erroring.
+	async function handlePasskeyMfa() {
+		const currentFlow = flow.flow;
+		if (!currentFlow || passkeyMfaLoading) return;
+
+		passkeyMfaLoading = true;
+		flow.setSubmitting(currentFlow);
+		try {
+			const res = await client.verifyPasskeyMfa(currentFlow.id);
+			if (!res) {
+				flow.setReady(currentFlow);
+				return;
+			}
+			flow.setSuccess(res);
+			session.setAuthenticated(
+				res.session.identity,
+				res.session.authenticated_at,
+				res.session.expires_at
+			);
+			onsuccess?.(res.session.identity);
+		} catch (err) {
+			flow.setError(err, currentFlow);
+		} finally {
+			passkeyMfaLoading = false;
 		}
 	}
 </script>
@@ -100,6 +130,13 @@
 				</button>
 				<button
 					class="ferret-mfa-tab"
+					class:active={mfaMethod === 'passkey'}
+					onclick={() => (mfaMethod = 'passkey')}
+				>
+					{t('flow.method.webauthn')}
+				</button>
+				<button
+					class="ferret-mfa-tab"
 					class:active={mfaMethod === 'recovery_code'}
 					onclick={() => (mfaMethod = 'recovery_code')}
 				>
@@ -107,20 +144,38 @@
 				</button>
 			</div>
 
-			<FlowForm
-				fields={[
-					{
-						name: 'code',
-						type: 'text',
-						required: true,
-						label: mfaMethod === 'totp' ? t('flow.field.totp_code') : t('flow.field.recovery_code')
-					}
-				]}
-				error={flow.error}
-				loading={flow.isLoading}
-				submitLabel={t('action.verify')}
-				onsubmit={handleMfaSubmit}
-			/>
+			{#if mfaMethod === 'passkey'}
+				<p class="ferret-status-message">{t('mfa.passkey.verify_prompt')}</p>
+				{#if flow.error}
+					<div class="ferret-form-error" role="alert">
+						{flow.error instanceof FerretError ? t(flow.error.i18nKey) : flow.error.message}
+					</div>
+				{/if}
+				<button
+					class="ferret-passkey-verify"
+					onclick={handlePasskeyMfa}
+					disabled={passkeyMfaLoading}
+				>
+					{t('mfa.passkey.verify')}
+				</button>
+			{:else}
+				<FlowForm
+					fields={[
+						{
+							name: 'code',
+							type: 'text',
+							required: true,
+							label: mfaMethod === 'totp'
+								? t('flow.field.totp_code')
+								: t('flow.field.recovery_code')
+						}
+					]}
+					error={flow.error}
+					loading={flow.isLoading}
+					submitLabel={t('action.verify')}
+					onsubmit={handleMfaSubmit}
+				/>
+			{/if}
 		</div>
 	{:else if flow.flow?.status === 'mfa_setup_required'}
 		<div class="ferret-mfa">
@@ -204,6 +259,38 @@
 		background: var(--ferret-primary-bg, #3b82f6);
 		color: var(--ferret-primary-color, #ffffff);
 		border-color: var(--ferret-primary-bg, #3b82f6);
+	}
+
+	.ferret-passkey-verify {
+		width: 100%;
+		padding: 0.625rem 1rem;
+		border: 1px solid transparent;
+		border-radius: 0.375rem;
+		background: var(--ferret-primary-bg, #3b82f6);
+		color: var(--ferret-primary-color, #ffffff);
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.ferret-passkey-verify:hover:not(:disabled) {
+		background: var(--ferret-primary-hover, #2563eb);
+	}
+
+	.ferret-passkey-verify:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.ferret-form-error {
+		padding: 0.625rem 0.875rem;
+		margin-bottom: 0.75rem;
+		border-radius: 0.375rem;
+		font-size: 0.875rem;
+		background: var(--ferret-error-bg, #fef2f2);
+		color: var(--ferret-error-color, #dc2626);
+		border: 1px solid var(--ferret-error-border, #fecaca);
 	}
 
 	.ferret-login-links {

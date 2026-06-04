@@ -22,6 +22,28 @@ export const zhTW: Record<string, string> = {
 	'error.service_unavailable': '服務暫時無法使用',
 	'error.content_type_invalid': '無效的內容類型',
 	'error.body_too_large': '請求內容過大',
+	'error.invalid_request': '請求無效',
+	'error.not_found': '找不到請求的項目',
+	'error.password.breached': '此密碼曾出現在資料外洩事件中，請選擇其他密碼',
+	'error.password.common': '此密碼太常見，請選擇其他密碼',
+	'error.registration_closed': '目前暫停註冊',
+	'error.email_domain_not_allowed': '不允許使用此 Email 網域',
+	'error.invitation_not_found': '找不到此邀請',
+	'error.invitation_expired': '此邀請已過期',
+	'error.invitation_exhausted': '此邀請已被使用',
+	'error.role_already_exists': '此角色已存在',
+	'error.insufficient_permissions': '您沒有權限執行此操作',
+	'error.no_pending_deletion': '沒有待處理的帳號刪除請求',
+	'error.social_provider_not_found': '此社群登入提供者無法使用',
+	'error.social_state_invalid': '社群登入失敗（狀態無效），請重試',
+	'error.social_login_failed': '社群登入失敗，請重試',
+	'error.social_linking_denied': '無法連結此帳號',
+	'error.passkey_verification_failed': '通行金鑰驗證失敗，請重試',
+	'error.email_send_failed': '無法寄送 Email，請稍後再試',
+	// 對應 SDK 在缺 i18n_key 時以 `error.<code>` 兜底、且 code 與標準 key 不同者
+	'error.breached_password': '此密碼曾出現在資料外洩事件中，請選擇其他密碼',
+	'error.common_password': '此密碼太常見，請選擇其他密碼',
+	'error.internal_error': '系統發生錯誤，請稍後再試',
 
 	// ─── 欄位錯誤 ────────────────────────────────────────────────────────
 	'error.field.required': '此欄位為必填',
@@ -61,6 +83,11 @@ export const zhTW: Record<string, string> = {
 	'flow.method.totp': '驗證器應用程式',
 	'flow.method.webauthn': '通行金鑰',
 	'flow.method.recovery_code': '救援碼',
+	// MFA-status method types (TotpManager keys off `method.type`): the
+	// /mfa endpoint reports `passkey` and `recovery_codes`, distinct from the
+	// login-flow tab keys (`webauthn` / `recovery_code`) above.
+	'flow.method.passkey': '通行金鑰',
+	'flow.method.recovery_codes': '救援碼',
 
 	// ─── 操作 ────────────────────────────────────────────────────────────
 	'action.login': '登入',
@@ -99,6 +126,8 @@ export const zhTW: Record<string, string> = {
 	'mfa.passkey.last_used': '最後使用：{{date}}',
 	'mfa.passkey.never_used': '從未使用',
 	'mfa.passkey.backed_up': '已備份',
+	'mfa.passkey.verify_prompt': '使用已註冊的通行金鑰完成登入。',
+	'mfa.passkey.verify': '使用通行金鑰驗證',
 	'mfa.trusted_devices.title': '信任裝置',
 	'mfa.trusted_devices.no_devices': '沒有信任裝置。',
 	'mfa.trusted_devices.remove': '移除',
@@ -131,6 +160,10 @@ export const zhTW: Record<string, string> = {
 	'social.unlink_confirm': '確定要取消連結此 {{provider}} 帳號嗎？',
 	'social.unlinked': '帳號已成功取消連結。',
 	'social.linked_at': '連結時間：{{date}}',
+	'social.continue_with': '使用 {{provider}} 繼續',
+	'social.loading': '正在完成登入…',
+	'social.error': '社群登入失敗，請再試一次。',
+	'social.mfa_required': '需要額外驗證才能完成登入。',
 
 	// ─── GDPR ────────────────────────────────────────────────────────────
 	'gdpr.delete_account.title': '刪除帳號',

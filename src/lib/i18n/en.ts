@@ -22,6 +22,29 @@ export const en: Record<string, string> = {
 	'error.service_unavailable': 'Service is temporarily unavailable.',
 	'error.content_type_invalid': 'Invalid content type.',
 	'error.body_too_large': 'Request body is too large.',
+	'error.invalid_request': 'The request was invalid.',
+	'error.not_found': 'The requested item could not be found.',
+	'error.password.breached': 'This password has appeared in a data breach. Please choose another.',
+	'error.password.common': 'This password is too common. Please choose another.',
+	'error.registration_closed': 'Registration is currently closed.',
+	'error.email_domain_not_allowed': 'This email domain is not allowed.',
+	'error.invitation_not_found': 'This invitation could not be found.',
+	'error.invitation_expired': 'This invitation has expired.',
+	'error.invitation_exhausted': 'This invitation has already been used.',
+	'error.role_already_exists': 'That role already exists.',
+	'error.insufficient_permissions': 'You do not have permission to perform this action.',
+	'error.no_pending_deletion': 'There is no pending account deletion to act on.',
+	'error.social_provider_not_found': 'This social login provider is not available.',
+	'error.social_state_invalid': 'Social login failed (invalid state). Please try again.',
+	'error.social_login_failed': 'Social login failed. Please try again.',
+	'error.social_linking_denied': 'This account could not be linked.',
+	'error.passkey_verification_failed': 'Passkey verification failed. Please try again.',
+	'error.email_send_failed': 'We could not send the email. Please try again later.',
+	// Aliases for the SDK's `error.<code>` fallback when a deploy omits i18n_key
+	// and the code differs from its canonical key (breached/common/internal).
+	'error.breached_password': 'This password has appeared in a data breach. Please choose another.',
+	'error.common_password': 'This password is too common. Please choose another.',
+	'error.internal_error': 'An unexpected error occurred. Please try again later.',
 
 	// ─── Field-level errors ──────────────────────────────────────────────
 	'error.field.required': 'This field is required.',
@@ -61,6 +84,11 @@ export const en: Record<string, string> = {
 	'flow.method.totp': 'Authenticator App',
 	'flow.method.webauthn': 'Passkey',
 	'flow.method.recovery_code': 'Recovery Code',
+	// MFA-status method types (TotpManager keys off `method.type`): the
+	// /mfa endpoint reports `passkey` and `recovery_codes`, distinct from the
+	// login-flow tab keys (`webauthn` / `recovery_code`) above.
+	'flow.method.passkey': 'Passkey',
+	'flow.method.recovery_codes': 'Recovery Codes',
 
 	// ─── Actions ─────────────────────────────────────────────────────────
 	'action.login': 'Log In',
@@ -99,6 +127,8 @@ export const en: Record<string, string> = {
 	'mfa.passkey.last_used': 'Last used: {{date}}',
 	'mfa.passkey.never_used': 'Never used',
 	'mfa.passkey.backed_up': 'Backed up',
+	'mfa.passkey.verify_prompt': 'Use your registered passkey to finish signing in.',
+	'mfa.passkey.verify': 'Verify with passkey',
 	'mfa.trusted_devices.title': 'Trusted Devices',
 	'mfa.trusted_devices.no_devices': 'No trusted devices.',
 	'mfa.trusted_devices.remove': 'Remove',
@@ -131,6 +161,10 @@ export const en: Record<string, string> = {
 	'social.unlink_confirm': 'Are you sure you want to unlink this {{provider}} account?',
 	'social.unlinked': 'Account unlinked successfully.',
 	'social.linked_at': 'Linked: {{date}}',
+	'social.continue_with': 'Continue with {{provider}}',
+	'social.loading': 'Completing sign-in…',
+	'social.error': 'Social sign-in failed. Please try again.',
+	'social.mfa_required': 'Additional verification is required to finish signing in.',
 
 	// ─── GDPR ────────────────────────────────────────────────────────────
 	'gdpr.delete_account.title': 'Delete Account',
