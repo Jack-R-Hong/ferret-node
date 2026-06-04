@@ -73,8 +73,10 @@ export type {
 // ─── Stores ──────────────────────────────────────────────────────────────────
 export { createSessionStore } from './stores/session.svelte.js';
 export { createFlowStore } from './stores/flow.svelte.js';
+export { createSocialLoginStore } from './stores/social.svelte.js';
 export type { SessionState, SessionStore } from './stores/session.svelte.js';
 export type { FlowState, FlowStore } from './stores/flow.svelte.js';
+export type { SocialLoginState, SocialLoginStore, SocialReturnKind } from './stores/social.svelte.js';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 export {
@@ -107,6 +109,7 @@ export { default as TrustedDevicesList } from './components/TrustedDevicesList.s
 export { default as RecoveryCodeRegen } from './components/RecoveryCodeRegen.svelte';
 export { default as EmailChangeFlow } from './components/EmailChangeFlow.svelte';
 export { default as SocialAccountsList } from './components/SocialAccountsList.svelte';
+export { default as SocialLogin } from './components/SocialLogin.svelte';
 export { default as SecurityActivityLog } from './components/SecurityActivityLog.svelte';
 export { default as DataExportRequest } from './components/DataExportRequest.svelte';
 export { default as DeleteAccountConfirm } from './components/DeleteAccountConfirm.svelte';
