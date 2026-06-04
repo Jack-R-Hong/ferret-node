@@ -104,6 +104,7 @@ export { default as VerificationFlow } from './components/VerificationFlow.svelt
 export { default as SettingsFlow } from './components/SettingsFlow.svelte';
 export { default as SessionList } from './components/SessionList.svelte';
 export { default as TotpManager } from './components/TotpManager.svelte';
+export { default as MfaRequirementToggle } from './components/MfaRequirementToggle.svelte';
 export { default as PasskeyManager } from './components/PasskeyManager.svelte';
 export { default as TrustedDevicesList } from './components/TrustedDevicesList.svelte';
 export { default as RecoveryCodeRegen } from './components/RecoveryCodeRegen.svelte';

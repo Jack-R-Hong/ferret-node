@@ -163,11 +163,14 @@ export interface SettingsSubmitResponse {
 // ─── MFA ─────────────────────────────────────────────────────────────────────
 
 export interface MfaMethod {
-	type: 'totp' | 'webauthn' | 'recovery_codes';
+	// Matches the worker's status payload (`type` is the serialized key); a
+	// passkey method serializes as `'passkey'`, not `'webauthn'`.
+	type: 'totp' | 'passkey' | 'recovery_codes';
 	enabled: boolean;
 	enrolled_at?: string;
 	credentials_count?: number;
 	remaining?: number;
+	count?: number;
 }
 
 export interface TrustedDevice {
@@ -180,6 +183,11 @@ export interface MfaStatusResponse {
 	enabled: boolean;
 	methods: MfaMethod[];
 	trusted_devices: TrustedDevice[];
+	/**
+	 * Per-user MFA requirement: 1 = password only, 2 = + one second factor,
+	 * 3 = + two distinct factors. Drives the "require two-factor" toggle.
+	 */
+	mfa_level?: number;
 }
 
 export interface TotpSetupResponse {

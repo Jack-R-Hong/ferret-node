@@ -507,9 +507,20 @@ export class FerretClient {
 
 	// ─── MFA ───────────────────────────────────────────────────────────────
 
-	/** Get current MFA status (methods, trusted devices). */
+	/** Get current MFA status (methods, trusted devices, mfa_level). */
 	getMfaStatus(): Promise<MfaStatusResponse> {
 		return this.get('/api/browser/self-service/mfa');
+	}
+
+	/**
+	 * Set the per-user MFA requirement (the "xfa" policy level):
+	 * `1` = password only, `2` = password + one second factor, `3` = + two
+	 * distinct factors. Session-gated on the browser path (no password needed).
+	 * Throws if `level` exceeds what the account's enrolled factors can satisfy
+	 * (`1 + enrolled factors`, capped at 3) — enroll a factor before raising it.
+	 */
+	setMfaLevel(level: number): Promise<void> {
+		return this.put('/api/browser/self-service/mfa/level', { level });
 	}
 
 	/** Begin TOTP enrollment. Returns secret, QR code, and backup codes. */
