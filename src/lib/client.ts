@@ -31,7 +31,8 @@ import type {
 	TokenListResponse,
 	TokenCreateResponse,
 	NotificationPreferences,
-	OAuthGrantsResponse
+	OAuthGrantsResponse,
+	AttributesResponse
 } from './types.js';
 
 /**
@@ -163,7 +164,7 @@ export class FerretClient {
 			| { method: 'totp'; code: string; trust_device?: boolean; csrf_token: string }
 			| { method: 'recovery_code'; code: string; csrf_token: string }
 	): Promise<LoginMfaResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}`, data);
+		return this.post(`/api/browser/self-service/login/${flowId}/mfa`, data);
 	}
 
 	/**
@@ -772,6 +773,26 @@ export class FerretClient {
 		return this.del(`/api/browser/self-service/oauth-grants/${clientId}`, {
 			csrf_token: csrfToken
 		});
+	}
+
+	// ─── Custom Attributes ─────────────────────────────────────────────────
+
+	/**
+	 * Get the caller's custom attributes (name → value map), filtered to the
+	 * schemas marked user- or public-readable. Requires an authenticated session.
+	 */
+	getAttributes(): Promise<AttributesResponse> {
+		return this.get('/api/browser/self-service/attributes');
+	}
+
+	/**
+	 * Set one or more user-writable custom attributes. Values must satisfy each
+	 * attribute's schema; writing an unknown or non-user-writable attribute is
+	 * rejected. Returns the updated, readable-filtered map. No CSRF token — the
+	 * browser path is gated on the session cookie alone.
+	 */
+	updateAttributes(attributes: Record<string, unknown>): Promise<AttributesResponse> {
+		return this.put('/api/browser/self-service/attributes', { attributes });
 	}
 
 	// ─── Magic Link ────────────────────────────────────────────────────────
