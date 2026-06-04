@@ -46,6 +46,17 @@ export class FerretClient {
 	private readonly _fetch: typeof fetch;
 
 	/**
+	 * The single in-flight `navigator.credentials.get()` request, if any. The
+	 * WebAuthn spec allows only one outstanding `get()` per page; a second one
+	 * throws "A request is already pending". The background conditional-mediation
+	 * autofill (`startConditionalPasskeyLogin`) stays pending for the life of the
+	 * login page, so an explicit passkey request fired afterwards (e.g. the MFA
+	 * second factor) would collide. We track the live request here and abort it
+	 * before starting a new one — last-write-wins.
+	 */
+	private inFlightWebAuthn?: AbortController;
+
+	/**
 	 * Called once per response when the backend returns 401. Used by
 	 * FerretProvider to flip the session store to "unauthenticated" globally
 	 * so any expired-session 401 surfaces in the auth guard regardless of
@@ -262,18 +273,34 @@ export class FerretClient {
 			rpId: opts.rpId
 		};
 
+		// Only one WebAuthn get() may be outstanding at a time. Abort whatever is
+		// still pending (typically the background conditional autofill) so this
+		// request — e.g. an explicit MFA passkey — doesn't hit "A request is
+		// already pending". Chain the caller's own signal into ours.
+		this.inFlightWebAuthn?.abort();
+		const controller = new AbortController();
+		this.inFlightWebAuthn = controller;
+		const forwardAbort = () => controller.abort();
+		if (signal) {
+			if (signal.aborted) controller.abort();
+			else signal.addEventListener('abort', forwardAbort, { once: true });
+		}
+
 		let credential: PublicKeyCredential | null;
 		try {
 			credential = (await navigator.credentials.get({
 				publicKey,
 				mediation,
-				signal
+				signal: controller.signal
 			} as CredentialRequestOptions)) as PublicKeyCredential | null;
 		} catch (err) {
 			if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
 				return null;
 			}
 			throw err;
+		} finally {
+			signal?.removeEventListener('abort', forwardAbort);
+			if (this.inFlightWebAuthn === controller) this.inFlightWebAuthn = undefined;
 		}
 		if (!credential) return null;
 		return this.serializeAssertion(credential);
@@ -291,6 +318,37 @@ export class FerretClient {
 		if (!assertion) return null;
 
 		return this.finishDiscoverablePasskeyLogin(flow.id, begin.challenge_token, assertion);
+	}
+
+	/**
+	 * Best-effort probe for whether a discoverable-passkey sign-in is worth
+	 * offering on this device. Returns `true` when the browser exposes WebAuthn
+	 * *and* either a platform authenticator (Touch ID / Windows Hello / Android)
+	 * or conditional mediation is available — i.e. the "Sign in with a passkey"
+	 * button has a realistic chance of working. Returns `false` on
+	 * non-browser/SSR, unsupported browsers, or when both probes are
+	 * false/throw. Note: this reports *capability*, not whether a credential is
+	 * actually registered — that can't be known without prompting.
+	 */
+	async isPasskeyLoginAvailable(): Promise<boolean> {
+		if (typeof window === 'undefined') return false;
+		const PKC = (window as unknown as { PublicKeyCredential?: typeof PublicKeyCredential })
+			.PublicKeyCredential;
+		if (!PKC) return false;
+		const probe = async (name: 'isUserVerifyingPlatformAuthenticatorAvailable' | 'isConditionalMediationAvailable') => {
+			const fn = (PKC as unknown as Record<string, unknown>)[name];
+			if (typeof fn !== 'function') return false;
+			try {
+				return (await (fn as () => Promise<boolean>).call(PKC)) === true;
+			} catch {
+				return false;
+			}
+		};
+		const [platform, conditional] = await Promise.all([
+			probe('isUserVerifyingPlatformAuthenticatorAvailable'),
+			probe('isConditionalMediationAvailable')
+		]);
+		return platform || conditional;
 	}
 
 	/**

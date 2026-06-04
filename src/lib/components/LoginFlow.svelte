@@ -22,8 +22,19 @@
 	const t = getFerretT();
 	const flow = createFlowStore();
 
-	let mfaMethod = $state<'totp' | 'recovery_code' | 'passkey'>('totp');
+	type MfaMethod = 'totp' | 'recovery_code' | 'passkey';
+	let mfaMethod = $state<MfaMethod>('totp');
 	let passkeyMfaLoading = $state(false);
+
+	// Which second factors this account can present, as reported by the backend
+	// on `mfa_required`. `null` = backend didn't say (older/native backends) —
+	// fall back to offering every method so we never hide one the user needs.
+	let mfaMethods = $state<MfaMethod[] | null>(null);
+	const allMfaMethods: MfaMethod[] = ['totp', 'passkey', 'recovery_code'];
+	// Render in a stable order, intersected with what's available.
+	const visibleMfaMethods = $derived(
+		allMfaMethods.filter((m) => (mfaMethods ?? allMfaMethods).includes(m))
+	);
 
 	onMount(() => {
 		initFlow();
@@ -53,6 +64,15 @@
 			});
 			// API returns status in response body for MFA transitions (not as error)
 			if (res.status === 'mfa_required' || res.status === 'mfa_setup_required') {
+				// Restrict the tabs to the methods this account actually has, and
+				// point the active tab at the first available one (the 'totp'
+				// default may not be enrolled).
+				if (res.status === 'mfa_required') {
+					mfaMethods = res.methods ?? null;
+					if (mfaMethods && mfaMethods.length && !mfaMethods.includes(mfaMethod)) {
+						mfaMethod = mfaMethods[0];
+					}
+				}
 				flow.setReady({ ...currentFlow, status: res.status, ui: res.ui ?? currentFlow.ui });
 			} else {
 				flow.setSuccess(res);
@@ -120,29 +140,39 @@
 		<div class="ferret-mfa">
 			<p class="ferret-status-message">{t('flow.status.mfa_required')}</p>
 
-			<div class="ferret-mfa-tabs">
-				<button
-					class="ferret-mfa-tab"
-					class:active={mfaMethod === 'totp'}
-					onclick={() => (mfaMethod = 'totp')}
-				>
-					{t('flow.method.totp')}
-				</button>
-				<button
-					class="ferret-mfa-tab"
-					class:active={mfaMethod === 'passkey'}
-					onclick={() => (mfaMethod = 'passkey')}
-				>
-					{t('flow.method.webauthn')}
-				</button>
-				<button
-					class="ferret-mfa-tab"
-					class:active={mfaMethod === 'recovery_code'}
-					onclick={() => (mfaMethod = 'recovery_code')}
-				>
-					{t('flow.method.recovery_code')}
-				</button>
-			</div>
+			<!-- Only offer the factors this account has enrolled. A single
+			     available method needs no tab bar. -->
+			{#if visibleMfaMethods.length > 1}
+				<div class="ferret-mfa-tabs">
+					{#if visibleMfaMethods.includes('totp')}
+						<button
+							class="ferret-mfa-tab"
+							class:active={mfaMethod === 'totp'}
+							onclick={() => (mfaMethod = 'totp')}
+						>
+							{t('flow.method.totp')}
+						</button>
+					{/if}
+					{#if visibleMfaMethods.includes('passkey')}
+						<button
+							class="ferret-mfa-tab"
+							class:active={mfaMethod === 'passkey'}
+							onclick={() => (mfaMethod = 'passkey')}
+						>
+							{t('flow.method.webauthn')}
+						</button>
+					{/if}
+					{#if visibleMfaMethods.includes('recovery_code')}
+						<button
+							class="ferret-mfa-tab"
+							class:active={mfaMethod === 'recovery_code'}
+							onclick={() => (mfaMethod = 'recovery_code')}
+						>
+							{t('flow.method.recovery_code')}
+						</button>
+					{/if}
+				</div>
+			{/if}
 
 			{#if mfaMethod === 'passkey'}
 				<p class="ferret-status-message">{t('mfa.passkey.verify_prompt')}</p>

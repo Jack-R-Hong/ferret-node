@@ -86,6 +86,14 @@ export interface LoginSubmitResponse {
 	/** Set by client when backend signals MFA is needed */
 	status?: FlowStatus;
 	ui?: FlowUI;
+	/**
+	 * Second-factor methods this account can actually present, sent by the
+	 * backend alongside `status: 'mfa_required'` so the login UI offers only
+	 * enrolled options (e.g. `['totp', 'passkey']`, or with `'recovery_code'`
+	 * when unused recovery codes remain). Absent on backends that don't supply
+	 * it — callers should fall back to offering all methods.
+	 */
+	methods?: Array<'totp' | 'passkey' | 'recovery_code'>;
 }
 
 export interface LoginMfaResponse {
