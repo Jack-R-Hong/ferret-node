@@ -6,3 +6,6 @@ build
 .env.*
 !.env.example
 package
+
+# Local agent tooling (Claude Code)
+.claude/
