@@ -22,6 +22,10 @@ export type {
 	LoginInitResponse,
 	LoginSubmitResponse,
 	LoginMfaResponse,
+	// QR login
+	QrLoginCreateResponse,
+	QrLoginPollResponse,
+	QrLoginStatus,
 	// Registration
 	RegistrationInitResponse,
 	RegistrationSubmitResponse,
@@ -73,9 +77,11 @@ export type {
 export { createSessionStore } from './stores/session.svelte.js';
 export { createFlowStore } from './stores/flow.svelte.js';
 export { createSocialLoginStore } from './stores/social.svelte.js';
+export { createQrLoginStore } from './stores/qr-login.svelte.js';
 export type { SessionState, SessionStore } from './stores/session.svelte.js';
 export type { FlowState, FlowStore } from './stores/flow.svelte.js';
 export type { SocialLoginState, SocialLoginStore, SocialReturnKind } from './stores/social.svelte.js';
+export type { QrLoginState, QrLoginStore } from './stores/qr-login.svelte.js';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 export {

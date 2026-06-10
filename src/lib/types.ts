@@ -111,6 +111,48 @@ export interface LoginMfaResponse {
 	remaining_codes?: number;
 }
 
+// ─── QR login (cross-device) ─────────────────────────────────────────────────
+
+/**
+ * `POST /api/browser/self-service/login/qr` — a fresh cross-device login
+ * request. The QR encodes `scan_token` (for the already-signed-in phone);
+ * `poll_token` stays on this device and is the only credential that can
+ * redeem the session. Treat both as secrets: never log or persist them.
+ */
+export interface QrLoginCreateResponse {
+	id: string;
+	/** Raw token embedded in the QR payload (`ferret-qr-login:<scan_token>`). */
+	scan_token: string;
+	/** Ready-to-render SVG markup of the QR code. */
+	qr_svg: string;
+	/** Pass back to {@link FerretClient.pollQrLogin} until a terminal status. */
+	poll_token: string;
+	expires_at: string;
+	/** Backend-suggested delay between polls. */
+	poll_interval_ms: number;
+}
+
+export type QrLoginStatus = 'pending' | 'scanned' | 'denied' | 'authorized';
+
+/**
+ * `POST /api/browser/self-service/login/qr/poll`. Non-terminal statuses echo
+ * `{ status }`; `authorized` additionally carries the freshly minted session
+ * (the response also sets the session cookie). `denied` is terminal. An
+ * expired or unknown request surfaces as a thrown `FerretError`
+ * (`flow_expired` / `flow_not_found`), not a status.
+ */
+export type QrLoginPollResponse =
+	| { status: 'pending' | 'scanned' | 'denied' }
+	| {
+			status: 'authorized';
+			session: {
+				id: string;
+				identity: Identity;
+				authenticated_at: string;
+				expires_at: string;
+			};
+	  };
+
 // ─── Registration ────────────────────────────────────────────────────────────
 
 export interface RegistrationInitResponse extends Flow {}

@@ -6,6 +6,8 @@ import type {
 	LoginInitResponse,
 	LoginSubmitResponse,
 	LoginMfaResponse,
+	QrLoginCreateResponse,
+	QrLoginPollResponse,
 	RegistrationInitResponse,
 	RegistrationSubmitResponse,
 	RecoveryInitResponse,
@@ -171,6 +173,27 @@ export class FerretClient {
 			| { method: 'recovery_code'; code: string; csrf_token: string }
 	): Promise<LoginMfaResponse> {
 		return this.post(`/api/browser/self-service/login/${flowId}/mfa`, data);
+	}
+
+	/**
+	 * Create a cross-device QR login request. Render `qr_svg`, keep
+	 * `poll_token` private to this page, and call {@link pollQrLogin} every
+	 * `poll_interval_ms` until it returns a terminal status. The QR is valid
+	 * for ~3 minutes (`expires_at`); create a fresh one after that.
+	 */
+	createQrLoginFlow(): Promise<QrLoginCreateResponse> {
+		return this.post('/api/browser/self-service/login/qr');
+	}
+
+	/**
+	 * Poll a QR login request. On `authorized` the backend has already set the
+	 * session cookie and the response carries the session. Throws `FerretError`
+	 * with `flow_expired` once the request times out, or `flow_not_found` when
+	 * it was already consumed / never existed (anti-enumeration: those are
+	 * indistinguishable by design).
+	 */
+	pollQrLogin(pollToken: string): Promise<QrLoginPollResponse> {
+		return this.post('/api/browser/self-service/login/qr/poll', { poll_token: pollToken });
 	}
 
 	/**
