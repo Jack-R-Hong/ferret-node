@@ -173,9 +173,22 @@ export interface RecoveryInitResponse extends Flow {
 }
 
 export interface RecoverySubmitResponse {
-	status: FlowStatus;
+	/** Present on the intermediate code step (`password_required`); absent on the final completion. */
+	status?: FlowStatus;
 	ui?: FlowUI;
-	identity?: Identity;
+	/**
+	 * Present only on the browser password-step completion. The backend returns
+	 * `{ session, csrf_token }` here — there is no top-level `identity`; read the
+	 * identity from `session.identity` (mirrors login/registration completion).
+	 */
+	session?: {
+		id: string;
+		identity: Identity;
+		authenticated_at: string;
+		expires_at: string;
+	};
+	/** Session-bound CSRF token minted alongside the session on completion. */
+	csrf_token?: string;
 }
 
 // ─── Verification ────────────────────────────────────────────────────────────

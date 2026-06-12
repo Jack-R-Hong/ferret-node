@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { Identity } from '../types.js';
 	import { createFlowStore } from '../stores/flow.svelte.js';
 	import { getFerretClient, getFerretSession, getFerretT } from '../context.js';
@@ -62,9 +61,16 @@
 				csrf_token: currentFlow.csrf_token ?? ''
 			});
 			flow.setSuccess(res);
-			if (res.identity) {
-				session.setAuthenticated(res.identity, new Date().toISOString(), '');
-				onsuccess?.(res.identity);
+			// Completion returns { session: { identity, ... }, csrf_token } and the
+			// session cookie is already set — flip the store to authenticated and
+			// fire onsuccess, mirroring LoginFlow / RegistrationFlow.
+			if (res.session) {
+				session.setAuthenticated(
+					res.session.identity,
+					res.session.authenticated_at,
+					res.session.expires_at
+				);
+				onsuccess?.(res.session.identity);
 			}
 		} catch (err) {
 			flow.setError(err, currentFlow);
