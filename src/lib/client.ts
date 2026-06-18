@@ -829,9 +829,14 @@ export class FerretClient {
 		if (returnTo) body.return_to = returnTo;
 		try {
 			await this.post('/api/browser/self-service/login/magic', body);
-		} catch {
-			// Swallow: response status is a security signal; callers must
-			// always render the neutral "if an account exists..." message.
+		} catch (err) {
+			// Swallow backend HTTP responses: the status itself is a security
+			// signal (a 404 vs 202 would leak account existence), so callers must
+			// always render the neutral "if an account exists..." message. But a
+			// genuine transport/programming error (offline, CORS, a bug) is NOT an
+			// enumeration signal — rethrow it so integrators see real failures
+			// instead of a silent no-op that never sends the mail.
+			if (!(err instanceof FerretError)) throw err;
 		}
 	}
 }
