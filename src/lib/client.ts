@@ -38,6 +38,24 @@ import type {
 } from './types.js';
 
 /**
+ * Request header carrying the session-bound CSRF token. Both Ferret runtimes
+ * (the axum server and the Cloudflare worker) reject mutating, cookie-
+ * authenticated `/api/browser` requests with `403 csrf_token_invalid` unless
+ * they either fall under a self-service flow family (login / registration /
+ * recovery / settings, which carry their own per-flow `csrf_token` in the body)
+ * or present this header. See `browser_csrf_guard` on the backend.
+ */
+const CSRF_HEADER = 'X-CSRF-Token';
+
+/**
+ * Non-HttpOnly cookies the backend sets alongside the session cookie, each
+ * holding the same session-bound CSRF token as its value. `__Host-ferret_csrf`
+ * is the prod name (requires `Secure`); `ferret_csrf` is the relaxed dev name.
+ * Checked in this order — only one is ever present for a given deployment.
+ */
+const CSRF_COOKIE_NAMES = ['__Host-ferret_csrf', 'ferret_csrf'] as const;
+
+/**
  * Ferret Browser API client.
  *
  * Wraps all `/api/browser/*` endpoints. Session is managed via HttpOnly cookies
@@ -60,6 +78,15 @@ export class FerretClient {
 	private inFlightWebAuthn?: AbortController;
 
 	/**
+	 * Cached session-bound CSRF token, sent as the {@link CSRF_HEADER} on
+	 * mutating requests. Only consulted as a fallback when the `ferret_csrf`
+	 * cookie can't be read — i.e. a cross-origin `baseUrl`. Refreshed from
+	 * {@link whoami} and settable via {@link setCsrfToken}. Same-origin callers
+	 * never need it: the cookie is read directly at request time.
+	 */
+	private csrfToken?: string;
+
+	/**
 	 * Called once per response when the backend returns 401. Used by
 	 * FerretProvider to flip the session store to "unauthenticated" globally
 	 * so any expired-session 401 surfaces in the auth guard regardless of
@@ -80,6 +107,18 @@ export class FerretClient {
 
 		if (body !== undefined) {
 			headers['Content-Type'] = 'application/json';
+		}
+
+		// Attach the session-bound CSRF token on every mutating request. The
+		// backend `browser_csrf_guard` ignores the header on safe methods and on
+		// the exempt flow surfaces, so over-sending is harmless — we don't
+		// replicate the exempt-path list here. Prefer the browser-managed cookie
+		// (always current, survives session re-mints) and fall back to the cached
+		// token for cross-origin callers that can't read it. No token → omit the
+		// header (pre-session flows have neither, and don't need one).
+		if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+			const csrf = this.readCsrfCookie() ?? this.csrfToken;
+			if (csrf) headers[CSRF_HEADER] = csrf;
 		}
 
 		const res = await this._fetch(url, {
@@ -143,6 +182,39 @@ export class FerretClient {
 		return this.request<T>('DELETE', path, body);
 	}
 
+	// ─── CSRF ──────────────────────────────────────────────────────────────
+
+	/**
+	 * Read the session-bound CSRF token from the non-HttpOnly `ferret_csrf`
+	 * (prod: `__Host-ferret_csrf`) cookie the backend sets next to the session
+	 * cookie. Same-origin only — a cross-origin `baseUrl` can't see the API
+	 * host's cookies here, so those integrators seed the token via
+	 * {@link setCsrfToken} or a {@link whoami} call. Returns `undefined` outside
+	 * a browser (SSR) or when no such cookie is set.
+	 */
+	private readCsrfCookie(): string | undefined {
+		if (typeof document === 'undefined' || !document.cookie) return undefined;
+		const jar = document.cookie.split('; ');
+		for (const name of CSRF_COOKIE_NAMES) {
+			const prefix = `${name}=`;
+			const hit = jar.find((c) => c.startsWith(prefix));
+			if (hit) return decodeURIComponent(hit.slice(prefix.length));
+		}
+		return undefined;
+	}
+
+	/**
+	 * Seed or clear the cached session-bound CSRF token used for the
+	 * `X-CSRF-Token` header. Only needed for a cross-origin `baseUrl`, where the
+	 * `ferret_csrf` cookie isn't readable: pass the `csrf_token` returned by a
+	 * login / registration / recovery completion (or by {@link whoami}). Pass
+	 * `null` to forget it (e.g. after logout). Same-origin callers can ignore
+	 * this — the cookie is read automatically, and takes precedence over any
+	 * value set here so a session re-mint is always reflected.
+	 */
+	setCsrfToken(token: string | null): void {
+		this.csrfToken = token ?? undefined;
+	}
 
 	// ─── Login ─────────────────────────────────────────────────────────────
 
@@ -446,15 +518,25 @@ export class FerretClient {
 	// ─── Logout ────────────────────────────────────────────────────────────
 
 	/** Logout the current session. Clears the session cookie. */
-	logout(csrfToken: string): Promise<void> {
-		return this.post('/api/browser/self-service/logout', { csrf_token: csrfToken });
+	async logout(csrfToken: string): Promise<void> {
+		await this.post('/api/browser/self-service/logout', { csrf_token: csrfToken });
+		// The backend clears the paired CSRF cookie too; drop our cached copy so a
+		// stale token can't be replayed if the same client instance re-authenticates.
+		this.csrfToken = undefined;
 	}
 
 	// ─── Session ───────────────────────────────────────────────────────────
 
-	/** Get current session and identity (whoami). */
-	whoami(): Promise<WhoamiResponse> {
-		return this.get('/api/browser/sessions/whoami');
+	/**
+	 * Get current session and identity (whoami). Also refreshes the cached
+	 * session-bound CSRF token (see {@link setCsrfToken}) so a cross-origin
+	 * caller that hydrates via whoami can then make guarded mutations without
+	 * threading the token manually.
+	 */
+	async whoami(): Promise<WhoamiResponse> {
+		const res = await this.get<WhoamiResponse>('/api/browser/sessions/whoami');
+		if (res.csrf_token) this.csrfToken = res.csrf_token;
+		return res;
 	}
 
 	/** List all active sessions for the current user. */
@@ -810,8 +892,9 @@ export class FerretClient {
 	/**
 	 * Set one or more user-writable custom attributes. Values must satisfy each
 	 * attribute's schema; writing an unknown or non-user-writable attribute is
-	 * rejected. Returns the updated, readable-filtered map. No CSRF token — the
-	 * browser path is gated on the session cookie alone.
+	 * rejected. Returns the updated, readable-filtered map. Cookie-authenticated
+	 * and mutating, so the `X-CSRF-Token` header is attached automatically (see
+	 * {@link setCsrfToken}) — the backend's `browser_csrf_guard` requires it.
 	 */
 	updateAttributes(attributes: Record<string, unknown>): Promise<AttributesResponse> {
 		return this.put('/api/browser/self-service/attributes', { attributes });

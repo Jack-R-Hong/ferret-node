@@ -31,6 +31,13 @@ export interface WhoamiResponse {
 		authenticated_at: string;
 		expires_at: string;
 	};
+	/**
+	 * Session-bound CSRF token, echoed back as the `X-CSRF-Token` header on
+	 * mutating self-service requests. The SDK caches this automatically; it's
+	 * surfaced here mainly for cross-origin integrators (see
+	 * {@link FerretClient.setCsrfToken}).
+	 */
+	csrf_token?: string;
 }
 
 export interface SessionListResponse {

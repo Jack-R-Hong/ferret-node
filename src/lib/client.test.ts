@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { FerretClient } from './client.js';
 import { FerretError } from './errors.js';
 
@@ -66,6 +66,80 @@ describe('FerretClient.request — wire shape', () => {
 		expect(init.method).toBe('GET');
 		expect(init.body).toBeUndefined();
 		expect(headers['Content-Type']).toBeUndefined();
+	});
+});
+
+describe('FerretClient.request — X-CSRF-Token header', () => {
+	function clearCsrfCookies() {
+		for (const name of ['ferret_csrf', '__Host-ferret_csrf']) {
+			document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+		}
+	}
+	afterEach(clearCsrfCookies);
+
+	it('attaches the ferret_csrf cookie as X-CSRF-Token on a mutating request', async () => {
+		document.cookie = 'ferret_csrf=cookie-tok';
+		const { client, fetchMock } = makeClient(async () => noContent());
+		await client.revokeSession('s1', 'body-tok');
+		expect(lastCall(fetchMock).headers['X-CSRF-Token']).toBe('cookie-tok');
+	});
+
+	it('does NOT attach X-CSRF-Token on a GET, even with the cookie present', async () => {
+		document.cookie = 'ferret_csrf=cookie-tok';
+		const { client, fetchMock } = makeClient(async () =>
+			jsonResponse({ session: { id: 's', identity: {}, authenticated_at: '', expires_at: '' } })
+		);
+		await client.whoami();
+		expect(lastCall(fetchMock).headers['X-CSRF-Token']).toBeUndefined();
+	});
+
+	it('omits the header when there is no cookie and no cached token (pre-session flow)', async () => {
+		const { client, fetchMock } = makeClient(async () =>
+			jsonResponse({ id: 'f', csrf_token: 'flow-tok', ui: { method: 'POST', action: '', fields: [] }, expires_at: '' })
+		);
+		await client.createLoginFlow();
+		expect(lastCall(fetchMock).headers['X-CSRF-Token']).toBeUndefined();
+	});
+
+	it('setCsrfToken seeds the header for a cross-origin caller (no readable cookie)', async () => {
+		const { client, fetchMock } = makeClient(async () => noContent());
+		client.setCsrfToken('seed-tok');
+		await client.deleteAccount('body-tok');
+		expect(lastCall(fetchMock).headers['X-CSRF-Token']).toBe('seed-tok');
+	});
+
+	it('whoami caches the session-bound token so later mutations carry it cross-origin', async () => {
+		let call = 0;
+		const { client, fetchMock } = makeClient(async () => {
+			call += 1;
+			return call === 1
+				? jsonResponse({
+						session: { id: 's', identity: {}, authenticated_at: '', expires_at: '' },
+						csrf_token: 'who-tok'
+					})
+				: noContent();
+		});
+		await client.whoami();
+		await client.deleteAccount('body-tok');
+		const [, secondInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+		expect((secondInit.headers as Record<string, string>)['X-CSRF-Token']).toBe('who-tok');
+	});
+
+	it('prefers the browser cookie over a stale cached token (survives session re-mint)', async () => {
+		const { client, fetchMock } = makeClient(async () => noContent());
+		client.setCsrfToken('stale-tok');
+		document.cookie = 'ferret_csrf=fresh-tok';
+		await client.deleteAccount('body-tok');
+		expect(lastCall(fetchMock).headers['X-CSRF-Token']).toBe('fresh-tok');
+	});
+
+	it('logout clears the cached token so it cannot be replayed after re-auth', async () => {
+		const { client, fetchMock } = makeClient(async () => noContent());
+		client.setCsrfToken('seed-tok');
+		await client.logout('body-tok');
+		await client.deleteAccount('body-tok');
+		const [, secondInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+		expect((secondInit.headers as Record<string, string>)['X-CSRF-Token']).toBeUndefined();
 	});
 });
 

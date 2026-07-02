@@ -163,6 +163,42 @@ describe('contract: magic link neutrality over the wire', () => {
 	});
 });
 
+describe('contract: browser CSRF header on guarded mutations', () => {
+	// Both Ferret runtimes' `browser_csrf_guard` reject a mutating,
+	// cookie-authenticated /api/browser request that omits X-CSRF-Token — unless
+	// it's a self-service flow surface (its own per-flow csrf_token). Pin both sides.
+	it('sends the session-bound X-CSRF-Token on a guarded self-service mutation', async () => {
+		let seen: string | null = 'unset';
+		server.use(
+			http.post(api('/data-export'), ({ request }) => {
+				seen = request.headers.get('x-csrf-token');
+				return HttpResponse.json({ export_id: 'e1', status: 'pending', created_at: 't' });
+			})
+		);
+		const c = client();
+		c.setCsrfToken('sess-csrf');
+		await c.createDataExport();
+		expect(seen).toBe('sess-csrf');
+	});
+
+	it('omits X-CSRF-Token on the exempt login-flow surface (pre-session)', async () => {
+		let seen: string | null = 'unset';
+		server.use(
+			http.post(api('/login'), ({ request }) => {
+				seen = request.headers.get('x-csrf-token');
+				return HttpResponse.json({
+					id: 'f',
+					csrf_token: 'flow',
+					ui: { method: 'POST', action: '', fields: [] },
+					expires_at: ''
+				});
+			})
+		);
+		await client().createLoginFlow();
+		expect(seen).toBeNull();
+	});
+});
+
 describe('contract: session 401 surfaces onUnauthorized', () => {
 	it('a session_* 401 on whoami fires onUnauthorized and rejects', async () => {
 		server.use(
