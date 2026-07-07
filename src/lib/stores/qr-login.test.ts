@@ -44,6 +44,8 @@ describe('createQrLoginStore', () => {
 		await p;
 		expect(qr.state).toBe('ready');
 		expect(qr.qrSvg).toBe('<svg/>');
+		// Safe render primitive: the SVG as an <img>-ready data URI (null before start()).
+		expect(qr.qrImageSrc).toBe('data:image/svg+xml;charset=utf-8,%3Csvg%2F%3E');
 		expect(qr.expiresAt).toBe('2030-01-01T00:00:00Z');
 		expect(client.pollQrLogin).not.toHaveBeenCalled();
 		await vi.advanceTimersByTimeAsync(1000);
@@ -125,6 +127,7 @@ describe('createQrLoginStore', () => {
 		qr.stop();
 		expect(qr.state).toBe('idle');
 		expect(qr.qrSvg).toBeNull();
+		expect(qr.qrImageSrc).toBeNull();
 		await vi.advanceTimersByTimeAsync(5000);
 		expect(client.pollQrLogin).not.toHaveBeenCalled();
 	});

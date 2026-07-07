@@ -1,5 +1,6 @@
 import type { FerretClient } from '../client.js';
 import { FerretError } from '../errors.js';
+import { svgToDataUri } from '../svg.js';
 import type { SessionStore } from './session.svelte.js';
 
 /**
@@ -34,7 +35,12 @@ export type QrLoginState =
  *   const qr = createQrLoginStore(getFerretClient(), getFerretSession());
  *   $effect(() => { if (qr.state === 'authorized') goto('/account'); });
  *   <button onclick={() => qr.start()}>…</button>
- *   {@html qr.qrSvg}
+ *   <img alt="Scan to sign in" src={qr.qrImageSrc} />
+ *
+ * Render the QR through `qrImageSrc` (an `<img>` data-URI), NOT by inlining
+ * `qrSvg` with `{@html}`: the SVG comes from the server, and inlining it would
+ * make any embedded script/handler a DOM-XSS sink. `qrImageSrc` loads the same
+ * markup as an image, where script can't run.
  *
  * Call `stop()` when the QR UI unmounts or the user backs out, so the poll
  * loop doesn't keep hitting the backend from a page that no longer shows it.
@@ -134,8 +140,21 @@ export function createQrLoginStore(client: FerretClient, session: SessionStore) 
 		get state() {
 			return state;
 		},
+		/**
+		 * Raw QR SVG markup from the backend. Prefer {@link qrImageSrc} for
+		 * rendering — inlining this with `{@html}` is a DOM-XSS sink. Exposed for
+		 * headless callers that pipe it somewhere already safe.
+		 */
 		get qrSvg() {
 			return qrSvg;
+		},
+		/**
+		 * The QR as a `data:image/svg+xml` URI, ready for an `<img>` `src`. `null`
+		 * until {@link start} has fetched a code. Safe to render directly: SVG
+		 * loaded as an image can't execute embedded script.
+		 */
+		get qrImageSrc() {
+			return qrSvg === null ? null : svgToDataUri(qrSvg);
 		},
 		get expiresAt() {
 			return expiresAt;

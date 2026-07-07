@@ -99,6 +99,9 @@ export type { Translations } from './i18n/index.js';
 // ─── WebAuthn helpers ────────────────────────────────────────────────────────
 export { b64ToBytes, bytesToB64 } from './webauthn.js';
 
+// ─── SVG helpers ─────────────────────────────────────────────────────────────
+export { svgToDataUri } from './svg.js';
+
 // ─── Components ──────────────────────────────────────────────────────────────
 export { default as FerretProvider } from './components/FerretProvider.svelte';
 export { default as FlowForm } from './components/FlowForm.svelte';

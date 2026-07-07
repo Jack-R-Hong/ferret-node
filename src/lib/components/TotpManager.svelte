@@ -3,6 +3,7 @@
 	import { getFerretClient, getFerretT } from '../context.js';
 	import type { MfaStatusResponse, TotpSetupResponse } from '../types.js';
 	import { FerretError } from '../errors.js';
+	import { svgToDataUri } from '../svg.js';
 
 	interface Props {
 		onsuccess?: () => void;
@@ -58,12 +59,6 @@
 	function clearMessages() {
 		error = null;
 		success = null;
-	}
-
-	function sanitizeSvg(svg: string): string {
-		return svg
-			.replace(/<script[\s\S]*?<\/script>/gi, '')
-			.replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
 	}
 
 	async function startSetup() {
@@ -152,7 +147,10 @@
 		{:else if step === 'setup' && totpSetup}
 			<div class="ferret-totp-setup">
 				<p class="ferret-muted">{t('mfa.totp.scan_qr')}</p>
-				<div class="ferret-qr">{@html sanitizeSvg(totpSetup.qr_svg)}</div>
+				<!-- Render the backend QR as an image, never inline `{@html}`. SVG
+				     loaded via an <img> data-URI can't execute embedded script or
+				     `on*` handlers, so a poisoned `qr_svg` is inert here. -->
+				<img class="ferret-qr" alt={t('mfa.totp.scan_qr')} src={svgToDataUri(totpSetup.qr_svg)} />
 				<p class="ferret-muted">{t('mfa.totp.manual_entry')}</p>
 				<code class="ferret-secret">{totpSetup.secret}</code>
 
@@ -413,11 +411,9 @@
 	}
 
 	.ferret-qr {
-		max-width: 200px;
-	}
-
-	.ferret-qr :global(svg) {
+		display: block;
 		width: 100%;
+		max-width: 200px;
 		height: auto;
 	}
 
