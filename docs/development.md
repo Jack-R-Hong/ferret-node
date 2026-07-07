@@ -30,7 +30,10 @@ ferret-node/
 │   │       ├── FlowForm.svelte        泛用 form renderer（其他 flow 內部用）
 │   │       └── *Flow.svelte / *Manager.svelte / *List.svelte ...
 │   ├── routes/+page.svelte        SvelteKit dev playground（非 package 內容）
+│   ├── routes/examples/           可跑的 SDK 使用範例（e2e 測試的目標頁；非 package 內容）
 │   ├── app.html / app.d.ts        SvelteKit 樣板（非 package 內容）
+├── e2e/                           Playwright e2e / 安全測試（mock backend，非 package 內容）
+├── playwright.config.ts           Playwright 設定（webServer 跑 vite dev）
 ├── dist/                          ← `npm run package` 產出，會發佈
 ├── docs/                          使用者 / 開發者文件
 ├── package.json                   exports 欄位指向 dist/index.js
@@ -337,6 +340,9 @@ export type XxxStore = ReturnType<typeof createXxxStore>;
 | `npm run package` | 跑 `svelte-package` + `publint`，產出 `dist/`。**發佈用的指令** |
 | `npm run build` | `vite build`（build SvelteKit playground app）+ `npm run package`。**playground 那段對發佈沒幫助**，發 npm 只需要 `package` |
 | `npm run prepublishOnly` | `npm publish` 前自動跑 `package` |
+| `npm run test` / `test:run` | Vitest 單元測試（watch / 一次性） |
+| `npm run test:coverage` | Vitest + v8 coverage |
+| `npm run test:e2e` | Playwright e2e / 安全測試（headless Chromium） |
 
 注意：
 
@@ -350,7 +356,28 @@ export type XxxStore = ReturnType<typeof createXxxStore>;
 
 ---
 
-## 10. 文件之間的關係
+## 10. 測試（Vitest + Playwright）
+
+兩層測試，跑法與職責不同：
+
+**單元 / 契約測試 — Vitest（jsdom）**
+
+- 檔案與被測程式**同目錄**（`src/lib/**/*.test.ts`），例如 `client.test.ts`、`svg.test.ts`、`stores/qr-login.test.ts`。
+- `client.contract.test.ts` 用 `msw` 對 wire shape 做契約測試。
+- 涵蓋 client（含 CSRF header 邏輯）、stores、i18n、errors、webauthn、`svgToDataUri` 等純邏輯。
+- 跑：`npm run test:run`。
+
+**端對端 / 安全測試 — Playwright（真實 Chromium）**
+
+- 在 `e2e/`，驅動 `src/routes/examples/` 下的範例頁；每個測試用 `page.route(...)` mock 掉 `/api/browser/*`，**不需要真的 Ferret backend**（見 `e2e/mock.ts`）。
+- 重點在**只有真瀏覽器測得出來**的行為：伺服器 SVG 的 DOM-XSS（`{@html}` vs `<img>` data-URI，jsdom 不會觸發 `<img onerror>`）、CSRF header 實際上鏈的情形。
+- 有安全問題時的作法：mock 一個帶惡意 payload 的後端回應（如被污染的 `qr_svg`），在真瀏覽器觀察會不會執行 → 現有測試把它們當**回歸防線**（poisoned payload 必須 inert）。
+- 跑：`npm run test:e2e`（會自動起 `vite dev`）。細節見 [`security.md`](./security.md)。
+- 目前 Dagger CI（`dagger call ci`）只跑 `check` + `test:run` + `package`；Playwright e2e 需要瀏覽器，尚未進 CI，改動安全相關的 SVG / CSRF 邏輯時請在本機手動跑 `npm run test:e2e`。
+
+---
+
+## 11. 文件之間的關係
 
 | 檔案 | 對象 | 內容 |
 |---|---|---|
@@ -359,7 +386,8 @@ export type XxxStore = ReturnType<typeof createXxxStore>;
 | `docs/architecture.md` | 使用者 / 想了解設計者 | layered design / context / FSM |
 | `docs/client.md` | 使用者 | `FerretClient` 每個方法的詳細 reference |
 | `docs/components.md` | 使用者 | 每個 component 的 props / 行為 |
-| `docs/stores.md` | 使用者 | `SessionStore` / `FlowStore` |
+| `docs/stores.md` | 使用者 | `SessionStore` / `FlowStore` / `QrLoginStore` |
+| `docs/security.md` | 使用者 | 伺服器 SVG 安全渲染 / CSRF / SSR / 帳號列舉防護 |
 | `docs/types.md` | 使用者 | type 對照 |
 | `docs/errors.md` | 使用者 | `FerretError` 用法 |
 | `docs/i18n.md` | 使用者 | 翻譯擴充 |

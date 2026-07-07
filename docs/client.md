@@ -573,3 +573,21 @@ import { b64ToBytes, bytesToB64 } from '@ferret/sdk-svelte';
 const bytes = b64ToBytes(options.challenge); // base64 → Uint8Array
 const b64 = bytesToB64(credential.rawId);    // ArrayBuffer → base64
 ```
+
+---
+
+## SVG helpers (top-level exports)
+
+### `svgToDataUri(svg)`
+
+Wraps SVG markup in a `data:image/svg+xml` URI so you can render server SVG
+(e.g. `qr_svg`) through an `<img>` instead of inlining it with `{@html}`. SVG
+loaded as an image can't execute embedded script or `on*` handlers, so a
+poisoned document is inert. See [Security → Rendering server SVG safely](./security.md#rendering-server-svg-safely).
+
+```ts
+import { svgToDataUri } from '@ferret/sdk-svelte';
+
+const setup = await client.setupTotp();
+// <img src={svgToDataUri(setup.qr_svg)} alt="Scan with your authenticator" />
+```

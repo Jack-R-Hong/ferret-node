@@ -1,6 +1,8 @@
 # Stores
 
-The SDK provides two Svelte 5 rune-based stores for managing authentication and flow state.
+The SDK provides Svelte 5 rune-based stores for managing authentication and flow
+state. `SessionStore` and `FlowStore` are the two core stores; `QrLoginStore`
+(below) and `SocialLoginStore` drive specific cross-device / social flows.
 
 ---
 
@@ -170,3 +172,75 @@ type FlowState =
   <p>Done!</p>
 {/if}
 ```
+
+---
+
+## QrLoginStore
+
+Drives cross-device QR login on the **displaying** (desktop) side: create a QR
+request, render it, and poll until a signed-in phone approves, denies, or the
+code expires. Created with `createQrLoginStore(client, session)`.
+
+### Creation
+
+```ts
+import { createQrLoginStore, getFerretClient, getFerretSession } from '@ferret/sdk-svelte';
+
+const qr = createQrLoginStore(getFerretClient(), getFerretSession());
+```
+
+### State
+
+```ts
+type QrLoginState =
+  | 'idle'        // nothing in flight (initial, or after stop())
+  | 'loading'     // creating a fresh QR request
+  | 'ready'       // QR on screen, waiting for a phone to scan it
+  | 'scanned'     // a signed-in phone scanned it; waiting for approve/deny
+  | 'authorized'  // approved — session cookie set, session store hydrated
+  | 'denied'      // the phone explicitly denied the sign-in (terminal)
+  | 'expired'     // the QR's ~3-minute TTL ran out (offer a refresh)
+  | 'error';      // create/poll failed for any other reason
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `state` | `QrLoginState` | Current phase |
+| `qrImageSrc` | `string \| null` | **Render this.** The QR as a `data:image/svg+xml` URI, ready for an `<img>` `src`. `null` until `start()`. |
+| `qrSvg` | `string \| null` | Raw QR SVG markup. For headless callers only — do **not** inline it with `{@html}` (see below). |
+| `expiresAt` | `string \| null` | ISO timestamp the current QR expires at |
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Create a fresh QR request and begin polling. Safe to call again to replace an expired code. |
+| `stop()` | Abandon the current request and return to `idle`. Call this when the QR UI unmounts. |
+
+### Usage
+
+```svelte
+<script lang="ts">
+  import { createQrLoginStore, getFerretClient, getFerretSession } from '@ferret/sdk-svelte';
+  import { goto } from '$app/navigation';
+
+  const qr = createQrLoginStore(getFerretClient(), getFerretSession());
+  $effect(() => { if (qr.state === 'authorized') goto('/account'); });
+</script>
+
+<button onclick={() => qr.start()}>Sign in with a QR code</button>
+
+{#if qr.qrImageSrc}
+  <img alt="Scan to sign in" src={qr.qrImageSrc} />
+{/if}
+{#if qr.state === 'expired'}
+  <button onclick={() => qr.start()}>Refresh code</button>
+{/if}
+```
+
+> ⚠️ **Never `{@html qr.qrSvg}`.** The SVG comes from the server; inlining it is
+> a DOM-XSS sink. Render `qrImageSrc` through an `<img>` (as above), which loads
+> the SVG as an image where embedded script can't run. See
+> [Security → Rendering server SVG safely](./security.md#rendering-server-svg-safely).
