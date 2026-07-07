@@ -56,6 +56,15 @@ const CSRF_HEADER = 'X-CSRF-Token';
 const CSRF_COOKIE_NAMES = ['__Host-ferret_csrf', 'ferret_csrf'] as const;
 
 /**
+ * Percent-encode a caller-supplied URL path segment (flow / session /
+ * credential ids, provider names). Every such value comes from a backend
+ * response today, so this is defense in depth: an id that somehow carried
+ * `/`, `?`, `#` or `..` must select a different resource, never rewrite the
+ * request path or smuggle a query string.
+ */
+const seg = encodeURIComponent;
+
+/**
  * Ferret Browser API client.
  *
  * Wraps all `/api/browser/*` endpoints. Session is managed via HttpOnly cookies
@@ -228,7 +237,7 @@ export class FerretClient {
 		flowId: string,
 		data: { identifier: string; password: string; csrf_token: string }
 	): Promise<LoginSubmitResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}`, data);
+		return this.post(`/api/browser/self-service/login/${seg(flowId)}`, data);
 	}
 
 	/**
@@ -244,7 +253,7 @@ export class FerretClient {
 			| { method: 'totp'; code: string; csrf_token: string }
 			| { method: 'recovery_code'; code: string; csrf_token: string }
 	): Promise<LoginMfaResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}/mfa`, data);
+		return this.post(`/api/browser/self-service/login/${seg(flowId)}/mfa`, data);
 	}
 
 	/**
@@ -276,7 +285,7 @@ export class FerretClient {
 	 */
 	beginPasskeyLogin(flowId: string, identifier?: string): Promise<PasskeyLoginBeginResponse> {
 		return this.post(
-			`/api/browser/self-service/login/${flowId}/passkey/begin`,
+			`/api/browser/self-service/login/${seg(flowId)}/passkey/begin`,
 			identifier ? { identifier } : {}
 		);
 	}
@@ -287,7 +296,7 @@ export class FerretClient {
 		challengeToken: string,
 		credential: Record<string, unknown>
 	): Promise<LoginSubmitResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}/passkey/finish`, {
+		return this.post(`/api/browser/self-service/login/${seg(flowId)}/passkey/finish`, {
 			challenge_token: challengeToken,
 			credential
 		});
@@ -313,7 +322,7 @@ export class FerretClient {
 
 	/** Begin a discoverable (resident-key) passkey login — no identifier needed. */
 	beginDiscoverablePasskeyLogin(flowId: string): Promise<PasskeyLoginBeginResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}/passkey/discover/begin`);
+		return this.post(`/api/browser/self-service/login/${seg(flowId)}/passkey/discover/begin`);
 	}
 
 	/** Finish a discoverable passkey login. Establishes the session. */
@@ -322,7 +331,7 @@ export class FerretClient {
 		challengeToken: string,
 		credential: Record<string, unknown>
 	): Promise<LoginSubmitResponse> {
-		return this.post(`/api/browser/self-service/login/${flowId}/passkey/discover/finish`, {
+		return this.post(`/api/browser/self-service/login/${seg(flowId)}/passkey/discover/finish`, {
 			challenge_token: challengeToken,
 			credential
 		});
@@ -512,7 +521,7 @@ export class FerretClient {
 			family_name?: string;
 		}
 	): Promise<RegistrationSubmitResponse> {
-		return this.post(`/api/browser/self-service/registration/${flowId}`, data);
+		return this.post(`/api/browser/self-service/registration/${seg(flowId)}`, data);
 	}
 
 	// ─── Logout ────────────────────────────────────────────────────────────
@@ -546,7 +555,7 @@ export class FerretClient {
 
 	/** Revoke a specific session by ID. */
 	revokeSession(sessionId: string, csrfToken: string): Promise<void> {
-		return this.del(`/api/browser/sessions/${sessionId}`, { csrf_token: csrfToken });
+		return this.del(`/api/browser/sessions/${seg(sessionId)}`, { csrf_token: csrfToken });
 	}
 
 	// ─── Settings ──────────────────────────────────────────────────────────
@@ -563,7 +572,7 @@ export class FerretClient {
 			| { csrf_token: string; password: { current: string; new: string } }
 			| { csrf_token: string; profile: Record<string, unknown> }
 	): Promise<SettingsSubmitResponse> {
-		return this.post(`/api/browser/self-service/settings/${flowId}`, data);
+		return this.post(`/api/browser/self-service/settings/${seg(flowId)}`, data);
 	}
 
 	// ─── Recovery ──────────────────────────────────────────────────────────
@@ -580,7 +589,7 @@ export class FerretClient {
 			| { code: string; csrf_token: string }
 			| { password: string; csrf_token: string }
 	): Promise<RecoverySubmitResponse> {
-		return this.post(`/api/browser/self-service/recovery/${flowId}`, data);
+		return this.post(`/api/browser/self-service/recovery/${seg(flowId)}`, data);
 	}
 
 	// ─── Email Verification ────────────────────────────────────────────────
@@ -595,7 +604,7 @@ export class FerretClient {
 		flowId: string,
 		data: { code: string; csrf_token: string }
 	): Promise<VerificationSubmitResponse> {
-		return this.post(`/api/browser/self-service/verification/${flowId}`, data);
+		return this.post(`/api/browser/self-service/verification/${seg(flowId)}`, data);
 	}
 
 	// ─── Email Change ──────────────────────────────────────────────────────
@@ -614,7 +623,7 @@ export class FerretClient {
 		flowId: string,
 		data: { code: string; csrf_token: string }
 	): Promise<{ identity: Identity }> {
-		return this.post(`/api/browser/self-service/settings/email/${flowId}`, data);
+		return this.post(`/api/browser/self-service/settings/email/${seg(flowId)}`, data);
 	}
 
 	// ─── MFA ───────────────────────────────────────────────────────────────
@@ -685,7 +694,7 @@ export class FerretClient {
 
 	/** Delete a passkey. Requires the account password to re-authorize. */
 	deletePasskey(credentialId: string, currentPassword: string): Promise<void> {
-		return this.del(`/api/browser/self-service/mfa/passkey/${credentialId}`, {
+		return this.del(`/api/browser/self-service/mfa/passkey/${seg(credentialId)}`, {
 			current_password: currentPassword
 		});
 	}
@@ -712,7 +721,7 @@ export class FerretClient {
 	 * ```
 	 */
 	socialLoginUrl(provider: string, returnTo?: string): string {
-		const path = `/api/browser/self-service/login/social/${provider}`;
+		const path = `/api/browser/self-service/login/social/${seg(provider)}`;
 		if (!returnTo) return `${this.baseUrl}${path}`;
 		return `${this.baseUrl}${path}?return_to=${encodeURIComponent(returnTo)}`;
 	}
@@ -723,7 +732,7 @@ export class FerretClient {
 	 * `socialLoginUrl` instead.
 	 */
 	socialLinkUrl(provider: string, returnTo?: string): string {
-		const path = `/api/browser/self-service/social/${provider}`;
+		const path = `/api/browser/self-service/social/${seg(provider)}`;
 		if (!returnTo) return `${this.baseUrl}${path}`;
 		return `${this.baseUrl}${path}?return_to=${encodeURIComponent(returnTo)}`;
 	}
@@ -735,7 +744,7 @@ export class FerretClient {
 
 	/** Unlink a social account. Requires CSRF token. */
 	unlinkSocialAccount(provider: string, csrfToken: string): Promise<void> {
-		return this.del(`/api/browser/self-service/social/${provider}`, { csrf_token: csrfToken });
+		return this.del(`/api/browser/self-service/social/${seg(provider)}`, { csrf_token: csrfToken });
 	}
 
 	/**
@@ -782,12 +791,12 @@ export class FerretClient {
 
 	/** Get data export status by ID. */
 	getDataExport(exportId: string): Promise<DataExport> {
-		return this.get(`/api/browser/self-service/data-export/${exportId}`);
+		return this.get(`/api/browser/self-service/data-export/${seg(exportId)}`);
 	}
 
 	/** Get the download URL for a ready data export. */
 	getDataExportDownloadUrl(exportId: string): string {
-		return `${this.baseUrl}/api/browser/self-service/data-export/${exportId}/download`;
+		return `${this.baseUrl}/api/browser/self-service/data-export/${seg(exportId)}/download`;
 	}
 
 	// ─── Security Activity ─────────────────────────────────────────────────
@@ -844,7 +853,7 @@ export class FerretClient {
 
 	/** Revoke a personal access token by id. */
 	revokeToken(id: string, csrfToken: string): Promise<void> {
-		return this.del(`/api/browser/self-service/tokens/${id}`, { csrf_token: csrfToken });
+		return this.del(`/api/browser/self-service/tokens/${seg(id)}`, { csrf_token: csrfToken });
 	}
 
 	// ─── Notification Preferences ──────────────────────────────────────────
@@ -874,7 +883,7 @@ export class FerretClient {
 
 	/** Revoke a specific OAuth client's access. */
 	revokeOAuthGrant(clientId: string, csrfToken: string): Promise<void> {
-		return this.del(`/api/browser/self-service/oauth-grants/${clientId}`, {
+		return this.del(`/api/browser/self-service/oauth-grants/${seg(clientId)}`, {
 			csrf_token: csrfToken
 		});
 	}

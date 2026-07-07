@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   ci:
-    name: check · test · package (Dagger)
+    name: check · test · e2e · package (Dagger)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,9 +26,10 @@ jobs:
             | DAGGER_VERSION=0.21.7 BIN_DIR=/usr/local/bin sudo -E sh
           dagger version
 
-      # Single gate: type-check + vitest (unit + msw contract) + svelte-package
-      # + publint, each in its own container, run concurrently. Fails if any
-      # gate fails. Identical to running `dagger call ci --source=.` locally.
+      # Single gate: type-check + vitest (unit + msw contract) + Playwright e2e
+      # (XSS/CSRF security-regression suite) + svelte-package + publint, each in
+      # its own container, run concurrently. Fails if any gate fails. Identical
+      # to running `dagger call ci --source=.` locally.
       - name: Run CI pipeline
         run: dagger call ci --source=.
         env:
