@@ -156,9 +156,12 @@ and out of scope for this client review.)
 
 ## Other observations (not exploitable here, worth noting)
 
-- Path parameters (`provider`, `sessionId`, `credentialId`) are interpolated into
-  request paths without `encodeURIComponent`. Values come from the backend's own
-  listings today, so low risk — encode them for defense in depth.
+- ~~Path parameters (`provider`, `sessionId`, `credentialId`) are interpolated
+  into request paths without `encodeURIComponent`~~ — **fixed**: every
+  caller-supplied path segment in `FerretClient` is now percent-encoded (see
+  `seg` in `src/lib/client.ts`), so an id carrying `/`, `?` or `#` can no longer
+  rewrite the request path. Defense in depth; values still come from backend
+  listings today.
 - ~~`FerretProvider` triggers `whoami` eagerly during SSR~~ — **fixed**: the
   auto-check moved into `onMount`, so the probe runs client-side only and no
   longer fetches during SSR. (Correctness/SSR smell, not a security issue.)

@@ -69,6 +69,48 @@ describe('FerretClient.request — wire shape', () => {
 	});
 });
 
+describe('FerretClient — path-parameter encoding', () => {
+	// Ids/providers come from backend responses today, so encoding is defense in
+	// depth: a value carrying path or query metacharacters must select a
+	// (nonexistent) resource, never rewrite the request path.
+	const HOSTILE = '../evil?admin=1#frag';
+	const ENCODED = encodeURIComponent(HOSTILE);
+
+	it('percent-encodes a hostile flow id so it cannot rewrite the path', async () => {
+		const { client, fetchMock } = makeClient(async () => jsonResponse({}));
+		await client.submitLogin(HOSTILE, { identifier: 'a', password: 'b', csrf_token: 'c' });
+		expect(lastCall(fetchMock).url).toBe(
+			`https://idp.example.com/api/browser/self-service/login/${ENCODED}`
+		);
+	});
+
+	it('percent-encodes ids on DELETE endpoints', async () => {
+		const { client, fetchMock } = makeClient(async () => noContent());
+		await client.revokeSession(HOSTILE, 'tok');
+		expect(lastCall(fetchMock).url).toBe(
+			`https://idp.example.com/api/browser/sessions/${ENCODED}`
+		);
+	});
+
+	it('percent-encodes the provider / export id in URL-builder helpers', () => {
+		const { client } = makeClient(async () => jsonResponse({}));
+		expect(client.socialLoginUrl('goo/../gle')).toBe(
+			'https://idp.example.com/api/browser/self-service/login/social/goo%2F..%2Fgle'
+		);
+		expect(client.getDataExportDownloadUrl('exp#1')).toBe(
+			'https://idp.example.com/api/browser/self-service/data-export/exp%231/download'
+		);
+	});
+
+	it('leaves ordinary ids untouched', async () => {
+		const { client, fetchMock } = makeClient(async () => noContent());
+		await client.revokeToken('tok_123-abc', 'csrf');
+		expect(lastCall(fetchMock).url).toBe(
+			'https://idp.example.com/api/browser/self-service/tokens/tok_123-abc'
+		);
+	});
+});
+
 describe('FerretClient.request — X-CSRF-Token header', () => {
 	function clearCsrfCookies() {
 		for (const name of ['ferret_csrf', '__Host-ferret_csrf']) {
