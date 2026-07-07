@@ -159,9 +159,9 @@ and out of scope for this client review.)
 - Path parameters (`provider`, `sessionId`, `credentialId`) are interpolated into
   request paths without `encodeURIComponent`. Values come from the backend's own
   listings today, so low risk — encode them for defense in depth.
-- `FerretProvider` triggers `whoami` eagerly during SSR; the dev server logs
-  "Avoid calling `fetch` eagerly during server-side rendering". Correctness/SSR
-  smell, not a security issue.
+- ~~`FerretProvider` triggers `whoami` eagerly during SSR~~ — **fixed**: the
+  auto-check moved into `onMount`, so the probe runs client-side only and no
+  longer fetches during SSR. (Correctness/SSR smell, not a security issue.)
 
 ---
 
