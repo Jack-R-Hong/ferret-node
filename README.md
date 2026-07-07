@@ -141,6 +141,22 @@ All components use CSS custom properties for theming:
 }
 ```
 
+## Security
+
+The pre-built components are safe by default; if you render SDK data yourself,
+two rules matter:
+
+- **Never `{@html}` server SVG.** The `qr_svg` fields (TOTP setup, QR login) are
+  server markup — inlining them is a DOM-XSS sink. Render them through an
+  `<img>` using `svgToDataUri(qr_svg)` or the QR store's `qrImageSrc`.
+- **CSRF is automatic.** `FerretClient` echoes the `ferret_csrf` cookie as
+  `X-CSRF-Token` on mutations and sends credentials on every request; cross-origin
+  integrations seed the token via `setCsrfToken()` / `whoami()`.
+
+See [docs/security.md](./docs/security.md) for the full guide. The security
+behaviour is covered by a Playwright suite (`npm run test:e2e`) and runnable
+examples under `src/routes/examples/`.
+
 ## API Coverage
 
 | Ferret API | Client Method | Component |

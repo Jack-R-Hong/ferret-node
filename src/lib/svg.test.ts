@@ -15,4 +15,18 @@ describe('svgToDataUri', () => {
 		expect(uri).not.toMatch(/<img/i);
 		expect(uri).toContain('%3Cimg');
 	});
+
+	it('neutralises a <script> payload (encoded, not raw markup)', () => {
+		const uri = svgToDataUri('<svg><script>alert(1)</' + 'script></svg>');
+		expect(uri).not.toContain('<script');
+		expect(uri).toContain('%3Cscript');
+	});
+
+	it('is lossless — the wrapped SVG decodes back to the original QR markup', () => {
+		// The doc promises the real QR still displays; the transform only wraps,
+		// it does not alter the bytes.
+		const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
+		const payload = svgToDataUri(svg).slice('data:image/svg+xml;charset=utf-8,'.length);
+		expect(decodeURIComponent(payload)).toBe(svg);
+	});
 });
