@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import type { FerretClientConfig } from '../types.js';
 	import { FerretClient } from '../client.js';
 	import { createSessionStore } from '../stores/session.svelte.js';
@@ -33,9 +33,13 @@
 
 	setFerretContext(client, session, t);
 
-	if (autoCheck) {
-		session.check();
-	}
+	// Defer the session probe to the browser: `session.check()` calls `whoami`,
+	// and firing it during component setup would hit the network on the server
+	// (SSR), where it can't send the session cookie and only errors. onMount
+	// never runs during SSR, so the check happens once, client-side, after mount.
+	onMount(() => {
+		if (autoCheck) session.check();
+	});
 </script>
 
 {@render children()}
