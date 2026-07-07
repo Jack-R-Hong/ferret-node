@@ -20,6 +20,11 @@ const client = new FerretClient({
 
 All requests use `credentials: 'include'` for automatic cookie handling.
 
+Path parameters (flow / session / credential ids, provider names, …) are
+percent-encoded automatically before being interpolated into request URLs —
+pass them exactly as the backend returned them, never pre-encoded. See
+[security.md → URL path parameters](./security.md#url-path-parameters).
+
 ---
 
 ## Login

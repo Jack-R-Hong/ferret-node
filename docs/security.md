@@ -5,6 +5,8 @@ follow when you render SDK data yourself.
 
 The runnable examples in `src/routes/examples/` and the Playwright suite in
 `e2e/` exercise everything below; run the security tests with `npm run test:e2e`.
+They also run as a mandatory CI gate (`dagger call ci`), so a change that
+reopens one of these sinks fails the pull request.
 
 ---
 
@@ -46,6 +48,39 @@ when you render `qr_svg` / `qr.qrSvg` yourself.
 > If you genuinely need inline SVG (e.g. to style it with `currentColor`), run it
 > through a vetted sanitizer such as DOMPurify with an SVG profile — not a
 > hand-rolled regex, which is easy to bypass.
+
+Two practical notes for the `<img>` approach:
+
+- **The SVG must declare `xmlns="http://www.w3.org/2000/svg"`** on its root
+  element. Inline SVG renders without it, but an `<img>` loading a data URI
+  parses as standalone XML — no namespace, no image. Ferret's backend QR codes
+  include it; keep this in mind if you feed `svgToDataUri` markup from another
+  source.
+- **Strict CSP needs `img-src data:`.** The QR renders from a
+  `data:image/svg+xml` URI, so a policy limited to `img-src 'self'` blocks it.
+  Allowing `data:` for images does not reopen what the CSP protects against
+  here — SVG loaded as an image cannot run script or fetch external resources.
+
+---
+
+## URL path parameters
+
+Every caller-supplied value that `FerretClient` interpolates into a request
+path — flow / session / credential / export / token / grant ids and social
+`provider` names — is percent-encoded with `encodeURIComponent` before the URL
+is built. A value carrying `/`, `?`, `#` or `..` can therefore only name a
+(nonexistent) resource under the intended route; it can never climb to a
+different endpoint or smuggle extra query parameters.
+
+In normal use these values all come from backend responses, so this is defense
+in depth rather than a patched exploit. Two things follow for integrators:
+
+- Pass ids **exactly as the backend returned them** — don't pre-encode. The
+  client would encode your `%` into `%25` and the backend would see a
+  different id.
+- If you hand-build URLs against the API instead of going through
+  `FerretClient` (or its URL builders like `socialLoginUrl()`), apply the same
+  rule: encode every dynamic segment.
 
 ---
 

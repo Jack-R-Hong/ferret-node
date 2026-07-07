@@ -152,10 +152,14 @@ two rules matter:
 - **CSRF is automatic.** `FerretClient` echoes the `ferret_csrf` cookie as
   `X-CSRF-Token` on mutations and sends credentials on every request; cross-origin
   integrations seed the token via `setCsrfToken()` / `whoami()`.
+- **Path parameters are encoded.** Ids and provider names are percent-encoded
+  before they're interpolated into request URLs — pass them as-is, never
+  pre-encoded.
 
 See [docs/security.md](./docs/security.md) for the full guide. The security
 behaviour is covered by a Playwright suite (`npm run test:e2e`) and runnable
-examples under `src/routes/examples/`.
+examples under `src/routes/examples/`, and the suite runs as a mandatory CI
+gate on every pull request.
 
 ## API Coverage
 

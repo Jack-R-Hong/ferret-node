@@ -373,7 +373,22 @@ export type XxxStore = ReturnType<typeof createXxxStore>;
 - 重點在**只有真瀏覽器測得出來**的行為：伺服器 SVG 的 DOM-XSS（`{@html}` vs `<img>` data-URI，jsdom 不會觸發 `<img onerror>`）、CSRF header 實際上鏈的情形。
 - 有安全問題時的作法：mock 一個帶惡意 payload 的後端回應（如被污染的 `qr_svg`），在真瀏覽器觀察會不會執行 → 現有測試把它們當**回歸防線**（poisoned payload 必須 inert）。
 - 跑：`npm run test:e2e`（會自動起 `vite dev`）。細節見 [`security.md`](./security.md)。
-- 目前 Dagger CI（`dagger call ci`）只跑 `check` + `test:run` + `package`；Playwright e2e 需要瀏覽器，尚未進 CI，改動安全相關的 SVG / CSRF 邏輯時請在本機手動跑 `npm run test:e2e`。
+
+**CI（Dagger）**
+
+GitHub Actions 只做一件事：`dagger call ci --source=.`。同一條 pipeline 可以在本機原樣重現（需要 Docker + `dagger` CLI）。`ci` 由四個 gate 並行組成，任一失敗即整體失敗：
+
+| Gate | 內容 | 容器 |
+|---|---|---|
+| `check` | `svelte-check` 型別檢查 | Node 22 |
+| `test` | Vitest 單元 + msw 契約測試 | Node 22 |
+| `pack` | `svelte-package` + `publint` | Node 22 |
+| `e2e` | Playwright 安全回歸 + 流程測試 | 官方 Playwright image |
+
+- 單獨跑某個 gate：`dagger call e2e --source=.`（或 `check` / `test` / `pack`）。
+- e2e gate 用官方 image（瀏覽器已內建），並設 `CI=1` 讓 `playwright.config.ts` 採 CI 行為（不 reuse dev server、禁止 `.only`）。backend 全程 mock，CI 裡不需要 Ferret server。
+- 🟥 **升級 `@playwright/test` 時，必須同步更新 `.dagger/src/index.ts` 頂部的 `PLAYWRIGHT_IMAGE` tag**。image 內建的瀏覽器版本必須和 npm 套件完全一致，不一致時 Playwright 會以「找不到對應瀏覽器」直接拒跑。
+- e2e 進了 CI 之後，`{@html}` sink 或 CSRF header 邏輯若被改壞，PR 會直接被擋下——不再依賴本機手動跑。
 
 ---
 
