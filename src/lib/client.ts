@@ -10,6 +10,7 @@ import type {
 	QrLoginPollResponse,
 	RegistrationInitResponse,
 	RegistrationSubmitResponse,
+	InvitationLookupResponse,
 	RecoveryInitResponse,
 	RecoverySubmitResponse,
 	VerificationInitResponse,
@@ -519,9 +520,22 @@ export class FerretClient {
 			csrf_token: string;
 			given_name?: string;
 			family_name?: string;
+			/** Required when the server runs `invite_only` registration. */
+			invitation_token?: string;
 		}
 	): Promise<RegistrationSubmitResponse> {
 		return this.post(`/api/browser/self-service/registration/${seg(flowId)}`, data);
+	}
+
+	/**
+	 * Resolve an invitation token (from an invitation link's `invitation_token`
+	 * query param) so the registration form can pre-fill the invited email.
+	 * Rejects with `invitation_expired` / `invitation_exhausted` (422) for a
+	 * token that can't be redeemed — the same errors the registration submit
+	 * returns.
+	 */
+	lookupInvitation(token: string): Promise<InvitationLookupResponse> {
+		return this.post('/api/browser/self-service/registration/invitation/lookup', { token });
 	}
 
 	// ─── Logout ────────────────────────────────────────────────────────────

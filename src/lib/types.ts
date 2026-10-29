@@ -61,6 +61,8 @@ export interface FlowField {
 	label?: string;
 	pattern?: string;
 	value?: string;
+	/** Client-side only: render the input read-only (e.g. an invited email). */
+	readonly?: boolean;
 	options?: Array<{ value: string; label: string }>;
 }
 
@@ -163,6 +165,15 @@ export type QrLoginPollResponse =
 // ─── Registration ────────────────────────────────────────────────────────────
 
 export interface RegistrationInitResponse extends Flow {}
+
+/**
+ * `POST /registration/invitation/lookup` — a redeemable invitation. `email` is
+ * set when the invitation is restricted to one address (pre-fill it).
+ */
+export interface InvitationLookupResponse {
+	email?: string;
+	expires_at: string;
+}
 
 export interface RegistrationSubmitResponse {
 	session: {

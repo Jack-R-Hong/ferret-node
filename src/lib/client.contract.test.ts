@@ -213,3 +213,61 @@ describe('contract: session 401 surfaces onUnauthorized', () => {
 		expect(onUnauthorized).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe('contract: registration invitations', () => {
+	it('lookupInvitation POSTs {token} to /registration/invitation/lookup', async () => {
+		let seen: { method: string; body: unknown } | undefined;
+		server.use(
+			http.post(api('/registration/invitation/lookup'), async ({ request }) => {
+				seen = { method: request.method, body: await request.json() };
+				return HttpResponse.json({ email: 'new@example.com', expires_at: '2026-11-01T00:00:00Z' });
+			})
+		);
+		const res = await client().lookupInvitation('tok_123');
+		expect(seen).toEqual({ method: 'POST', body: { token: 'tok_123' } });
+		expect(res).toEqual({ email: 'new@example.com', expires_at: '2026-11-01T00:00:00Z' });
+	});
+
+	it('a dead invitation token surfaces the server i18n key', async () => {
+		server.use(
+			http.post(api('/registration/invitation/lookup'), () =>
+				HttpResponse.json(
+					{
+						error: {
+							code: 'invitation_expired',
+							message: 'Invitation has expired',
+							i18n_key: 'error.invitation_expired',
+							status: 422
+						}
+					},
+					{ status: 422 }
+				)
+			)
+		);
+		const err = await client()
+			.lookupInvitation('dead')
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(FerretError);
+		expect(err.status).toBe(422);
+		expect(err.i18nKey).toBe('error.invitation_expired');
+	});
+
+	it('submitRegistration carries invitation_token in the body', async () => {
+		let body: Record<string, unknown> | undefined;
+		server.use(
+			http.post(api('/registration/:flowId'), async ({ request }) => {
+				body = (await request.json()) as Record<string, unknown>;
+				return HttpResponse.json({ session: sessionPayload });
+			})
+		);
+		await client().submitRegistration('flow-1', {
+			email: 'new@example.com',
+			username: 'newbie',
+			password: 'strong_password_42',
+			csrf_token: 'csrf',
+			invitation_token: 'tok_123'
+		});
+		expect(body?.invitation_token).toBe('tok_123');
+		expect(body?.email).toBe('new@example.com');
+	});
+});
