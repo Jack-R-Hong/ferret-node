@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Identity } from '../types.js';
+	import type { FlowField, Identity } from '../types.js';
+	import { FerretError } from '../errors.js';
 	import { createFlowStore } from '../stores/flow.svelte.js';
 	import { getFerretClient, getFerretSession, getFerretT } from '../context.js';
 	import FlowForm from './FlowForm.svelte';
@@ -8,18 +9,46 @@
 	interface Props {
 		onsuccess?: (identity: Identity) => void;
 		onlogin?: () => void;
+		/**
+		 * Invitation token from an invitation link (`?invitation_token=…`). It is
+		 * sent with the submit, and the invited email (if the invitation is
+		 * restricted to one) is pre-filled and locked.
+		 */
+		invitationToken?: string;
 	}
 
-	let { onsuccess, onlogin }: Props = $props();
+	let { onsuccess, onlogin, invitationToken }: Props = $props();
 
 	const client = getFerretClient();
 	const session = getFerretSession();
 	const t = getFerretT();
 	const flow = createFlowStore();
 
+	// Email the invitation is restricted to, once looked up.
+	let invitedEmail = $state<string | null>(null);
+	let invitationError = $state<FerretError | Error | null>(null);
+
+	const fields = $derived<FlowField[]>(
+		(flow.ui?.fields ?? []).map((f) =>
+			f.name === 'email' && invitedEmail ? { ...f, value: invitedEmail, readonly: true } : f
+		)
+	);
+
 	onMount(() => {
 		initFlow();
+		if (invitationToken) lookupInvitation(invitationToken);
 	});
+
+	async function lookupInvitation(token: string) {
+		try {
+			const res = await client.lookupInvitation(token);
+			invitedEmail = res.email ?? null;
+		} catch (err) {
+			// Keep the form usable (open registration ignores the token); the
+			// server rejects a dead token on submit in invite-only mode anyway.
+			invitationError = err instanceof Error ? err : new Error(String(err));
+		}
+	}
 
 	async function initFlow() {
 		flow.setLoading();
@@ -43,7 +72,8 @@
 				password: data.password,
 				csrf_token: currentFlow.csrf_token ?? '',
 				given_name: data.given_name || undefined,
-				family_name: data.family_name || undefined
+				family_name: data.family_name || undefined,
+				invitation_token: invitationToken || undefined
 			});
 			flow.setSuccess(res);
 			session.setAuthenticated(res.session.identity, res.session.authenticated_at, res.session.expires_at);
@@ -58,8 +88,15 @@
 	{#if flow.phase === 'loading'}
 		<div class="ferret-loading">{t('flow.status.input_required')}</div>
 	{:else if flow.ui}
+		{#if invitationError}
+			<div class="ferret-invitation-error" role="alert">
+				{invitationError instanceof FerretError
+					? t(invitationError.i18nKey)
+					: invitationError.message}
+			</div>
+		{/if}
 		<FlowForm
-			fields={flow.ui.fields}
+			{fields}
 			error={flow.error}
 			loading={flow.isLoading}
 			submitLabel={t('action.register')}
@@ -91,6 +128,16 @@
 		text-align: center;
 		color: var(--ferret-muted-color, #6b7280);
 		padding: 2rem 0;
+	}
+
+	.ferret-invitation-error {
+		padding: 0.75rem 1rem;
+		margin-bottom: 1rem;
+		border-radius: 0.375rem;
+		background: var(--ferret-error-bg, #fef2f2);
+		color: var(--ferret-error-color, #dc2626);
+		font-size: 0.875rem;
+		border: 1px solid var(--ferret-error-border, #fecaca);
 	}
 
 	.ferret-status-message {

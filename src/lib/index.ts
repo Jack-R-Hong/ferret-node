@@ -29,6 +29,7 @@ export type {
 	// Registration
 	RegistrationInitResponse,
 	RegistrationSubmitResponse,
+	InvitationLookupResponse,
 	// Recovery
 	RecoveryInitResponse,
 	RecoverySubmitResponse,

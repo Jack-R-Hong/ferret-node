@@ -91,6 +91,7 @@
 					name={field.name}
 					required={field.required}
 					pattern={field.pattern}
+					readonly={field.readonly}
 					autocomplete={fieldAutocomplete(field) as AutoFill | undefined}
 					bind:value={formData[field.name]}
 					disabled={loading}
